@@ -1,4 +1,5 @@
-import { Trash2, Plus } from "lucide-react";
+import Plus from "lucide-react/dist/esm/icons/plus.js";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";

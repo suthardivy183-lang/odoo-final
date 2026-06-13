@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Plus, Eye } from "lucide-react";
+import Eye from "lucide-react/dist/esm/icons/eye.js";
+import Plus from "lucide-react/dist/esm/icons/plus.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";

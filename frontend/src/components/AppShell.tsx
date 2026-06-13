@@ -5,6 +5,7 @@ import {
   ShoppingCart,
   Truck,
   Factory,
+  FlaskConical,
   Layers,
   ScrollText,
   LogOut,
@@ -36,6 +37,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/manufacturing", label: "Manufacturing", icon: Factory },
       { to: "/warehouse-mapping", label: "Warehouse Mapping", icon: Warehouse },
       { to: "/digital-twin", label: "Digital Twin", icon: Network },
+      { to: "/simulation", label: "Business Simulation Center", icon: FlaskConical },
     ],
   },
   {

@@ -14,6 +14,7 @@ import Purchase from "@/pages/purchase/Purchase";
 import Manufacturing from "@/pages/manufacturing/Manufacturing";
 import Bom from "@/pages/bom/Bom";
 import ActivityTimeline from "@/pages/audit-logs/AuditLogs";
+import BusinessSimulationCenter from "@/pages/simulation/BusinessSimulationCenter";
 
 /** Sends the user to the landing route for their role (or login if signed out). */
 function HomeRedirect() {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/purchase" element={<Purchase />} />
             <Route path="/manufacturing" element={<Manufacturing />} />
             <Route path="/bom" element={<Bom />} />
+            <Route path="/simulation" element={<BusinessSimulationCenter />} />
             <Route path="/audit-logs" element={<ActivityTimeline />} />
           </Route>
         </Route>
