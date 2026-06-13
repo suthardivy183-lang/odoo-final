@@ -145,3 +145,25 @@ export interface DashboardStats {
   purchase_orders: { draft: number; ordered: number; received: number; total: number };
   manufacturing_orders: { draft: number; planned: number; in_progress: number; completed: number; total: number };
 }
+
+export interface InsightItem {
+  severity: "critical" | "warning" | "info" | "success";
+  category: string;
+  title: string;
+  description: string;
+  impact: string;
+  recommendation: string;
+  confidence: number;
+  required?: number;
+  available?: number;
+  shortage?: number;
+}
+
+export interface InsightsResponse {
+  business_health_score: number;
+  summary: string;
+  critical_insights: InsightItem[];
+  warnings: InsightItem[];
+  opportunities: InsightItem[];
+  successes: InsightItem[];
+}

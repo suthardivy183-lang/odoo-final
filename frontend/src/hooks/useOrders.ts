@@ -7,6 +7,7 @@ import type {
   BillOfMaterials,
   AuditLog,
   DashboardStats,
+  InsightsResponse,
 } from "@/lib/types";
 
 /* ── Sales ─────────────────────────────────────────────────────────────── */
@@ -119,5 +120,13 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await api.get<DashboardStats>("/dashboard")).data,
+  });
+}
+
+export function useInsights(enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["insights"],
+    queryFn: async () => (await api.get<InsightsResponse>("/insights")).data,
+    enabled,
   });
 }

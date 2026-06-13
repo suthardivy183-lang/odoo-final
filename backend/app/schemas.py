@@ -279,6 +279,9 @@ class InsightItem(BaseModel):
     impact: str
     recommendation: str
     confidence: int
+    required: Optional[float] = None
+    available: Optional[float] = None
+    shortage: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 

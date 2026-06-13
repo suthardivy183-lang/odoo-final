@@ -150,22 +150,57 @@ def calculate_business_health_and_insights(db: Session) -> InsightsResponse:
                 confidence=95
             ))
 
-    # Category 3: Manufacturing Risks
-    for mo in manufacturing_orders:
-        if mo.status not in ["Completed", "Cancelled"]:
-            for comp in mo.components:
-                remaining = comp.required_quantity - comp.consumed_quantity
-                if remaining > comp.component_product.on_hand_qty:
-                    # Shortage detected
-                    add_insight(InsightItem(
-                        severity="critical",
-                        category="manufacturing",
-                        title=f"Material shortage for manufacturing order #{mo.id}",
-                        description=f"Shortage of raw material {comp.component_product.sku} {comp.component_product.name}.",
-                        impact="Production delay on key finished goods, impacting delivery commitments.",
-                        recommendation=f"Approve purchase order to procure {comp.component_product.sku}.",
-                        confidence=95
-                    ))
+    # Category 3: Manufacturing Risks (Recursive MRP shortage calculation logic)
+    confirmed_partially_delivered_sos = [
+        so for so in sales_orders
+        if so.status in ["Confirmed", "Partially Delivered"]
+    ]
+
+    mrp_requirements = {}
+
+    def explode_bom(product_id: int, required_qty: float, path: list):
+        if product_id in path:
+            return
+        
+        prod = db.query(Product).filter(Product.id == product_id).first()
+        if not prod:
+            return
+
+        bom = prod.active_bom or prod.bom
+        if not bom:
+            mrp_requirements[prod.id] = mrp_requirements.get(prod.id, 0.0) + required_qty
+            return
+
+        for comp in bom.components:
+            comp_qty = required_qty * comp.quantity
+            explode_bom(comp.component_product_id, comp_qty, path + [product_id])
+
+    for so in confirmed_partially_delivered_sos:
+        for line in so.lines:
+            rem_qty = line.quantity - line.delivered_qty
+            if rem_qty > 0:
+                explode_bom(line.product_id, rem_qty, [])
+
+    for prod_id, req_qty in mrp_requirements.items():
+        prod = db.query(Product).filter(Product.id == prod_id).first()
+        if not prod or prod.category != "Raw Material":
+            continue
+
+        avail_qty = prod.on_hand_qty
+        if req_qty > avail_qty:
+            short_qty = req_qty - avail_qty
+            add_insight(InsightItem(
+                severity="critical",
+                category="manufacturing",
+                title=f"Material shortage for {prod.name}",
+                description=f"Shortage of raw material {prod.sku} {prod.name}. Required: {req_qty}, Available: {avail_qty}, Shortage: {short_qty}.",
+                impact="Fulfillment delay on confirmed sales orders, impacting customer delivery commitments.",
+                recommendation=f"Approve purchase order to procure {prod.sku}.",
+                confidence=95,
+                required=req_qty,
+                available=avail_qty,
+                shortage=short_qty
+            ))
 
     # Category 4: Sales Trends
     if sales_orders:
