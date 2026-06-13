@@ -1,25 +1,23 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  Boxes,
-  CheckCircle2,
-  ClipboardList,
-  Factory,
-  Gauge,
-  PackageCheck,
-  ShieldCheck,
-  ShoppingCart,
-  TimerReset,
-  TrendingUp,
-} from "lucide-react";
+import Activity from "lucide-react/dist/esm/icons/activity.js";
+import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.js";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
+import Boxes from "lucide-react/dist/esm/icons/boxes.js";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2.js";
+import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list.js";
+import Factory from "lucide-react/dist/esm/icons/factory.js";
+import Gauge from "lucide-react/dist/esm/icons/gauge.js";
+import PackageCheck from "lucide-react/dist/esm/icons/package-check.js";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.js";
+import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
+import TimerReset from "lucide-react/dist/esm/icons/timer-reset.js";
+import TrendingUp from "lucide-react/dist/esm/icons/trending-up.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  useAuditLogs,
+  useActivityTimeline,
   useDashboard,
   useInsights,
   useManufacturingOrders,
@@ -27,7 +25,7 @@ import {
 } from "@/hooks/useOrders";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import type { AuditLog, DashboardStats, InsightItem, InsightsResponse, ManufacturingOrder } from "@/lib/types";
+import type { ActivityEvent, DashboardStats, InsightItem, InsightsResponse, ManufacturingOrder } from "@/lib/types";
 
 type PriorityLevel = "critical" | "high" | "medium" | "healthy";
 
@@ -247,10 +245,10 @@ function businessStatus(score: number, criticalCount: number, highPriorityCount:
   return { label: "Healthy", className: "text-emerald-700 bg-emerald-50 ring-emerald-200" };
 }
 
-function isResolvedLogToday(log: AuditLog) {
+function isResolvedLogToday(log: ActivityEvent) {
   const today = new Date().toDateString();
   const logDate = new Date(log.timestamp).toDateString();
-  const value = `${log.action} ${log.table_name} ${log.new_values ?? ""}`;
+  const value = `${log.action} ${log.entity_type} ${log.headline} ${log.changes.map((change) => `${change.before ?? ""} ${change.after ?? ""}`).join(" ")}`;
   return (
     today === logDate &&
     /update/i.test(log.action) &&
@@ -542,7 +540,7 @@ export default function Dashboard() {
   const { data: insights, isLoading: insightsLoading } = useInsights(isAdmin);
   const { data: manufacturingOrders, isLoading: manufacturingLoading } = useManufacturingOrders();
   const { data: salesOrders } = useSalesOrders();
-  const { data: auditLogs } = useAuditLogs({});
+  const { data: auditLogs } = useActivityTimeline({});
 
   const totalRevenue = React.useMemo(
     () =>

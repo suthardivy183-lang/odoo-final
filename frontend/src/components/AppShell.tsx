@@ -1,14 +1,13 @@
 import { NavLink, Outlet } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Truck,
-  Factory,
-  Layers,
-  ScrollText,
-  LogOut,
-} from "lucide-react";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard.js";
+import Package from "lucide-react/dist/esm/icons/package.js";
+import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
+import Truck from "lucide-react/dist/esm/icons/truck.js";
+import Factory from "lucide-react/dist/esm/icons/factory.js";
+import FlaskConical from "lucide-react/dist/esm/icons/flask-conical.js";
+import Layers from "lucide-react/dist/esm/icons/layers.js";
+import ScrollText from "lucide-react/dist/esm/icons/scroll-text.js";
+import LogOut from "lucide-react/dist/esm/icons/log-out.js";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ const NAV = [
   { to: "/purchase", label: "Purchase Orders", icon: Truck },
   { to: "/manufacturing", label: "Manufacturing", icon: Factory },
   { to: "/bom", label: "Bill of Materials", icon: Layers },
+  { to: "/simulation", label: "Business Simulation Center", icon: FlaskConical },
   { to: "/audit-logs", label: "Activity Timeline", icon: ScrollText, adminOnly: true },
 ];
 

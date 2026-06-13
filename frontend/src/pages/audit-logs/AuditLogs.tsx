@@ -1,15 +1,13 @@
 import * as React from "react";
-import {
-  Package,
-  ShoppingCart,
-  Truck,
-  Factory,
-  Layers,
-  User,
-  Filter,
-  ArrowRight,
-  Activity,
-} from "lucide-react";
+import Activity from "lucide-react/dist/esm/icons/activity.js";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
+import Factory from "lucide-react/dist/esm/icons/factory.js";
+import Filter from "lucide-react/dist/esm/icons/filter.js";
+import Layers from "lucide-react/dist/esm/icons/layers.js";
+import Package from "lucide-react/dist/esm/icons/package.js";
+import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
+import Truck from "lucide-react/dist/esm/icons/truck.js";
+import User from "lucide-react/dist/esm/icons/user.js";
 import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
