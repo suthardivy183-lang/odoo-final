@@ -206,6 +206,16 @@ class BoMResponse(BoMBase):
     model_config = ConfigDict(from_attributes=True)
 
 # Manufacturing Order Component Schemas
+class ComponentStorageLocation(BaseModel):
+    shelf_id: int
+    shelf_name: str
+    quantity: float
+    warehouse_name: str
+    aisle_name: str
+    rack_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 class ManufacturingOrderComponentResponse(BaseModel):
     id: int
     manufacturing_order_id: int
@@ -214,6 +224,7 @@ class ManufacturingOrderComponentResponse(BaseModel):
     consumed_quantity: float
     status: str
     component_product: Optional[ProductResponse] = None
+    storage_locations: Optional[List[ComponentStorageLocation]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -314,3 +325,99 @@ class InsightsResponse(BaseModel):
     successes: List[InsightItem]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Warehouse Mapping Schemas
+
+class WarehouseBase(BaseModel):
+    name: str
+    location: Optional[str] = None
+
+class WarehouseCreate(WarehouseBase):
+    pass
+
+class WarehouseResponse(WarehouseBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AisleBase(BaseModel):
+    warehouse_id: int
+    name: str
+
+class AisleCreate(AisleBase):
+    pass
+
+class AisleResponse(AisleBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class RackBase(BaseModel):
+    aisle_id: int
+    name: str
+
+class RackCreate(RackBase):
+    pass
+
+class RackResponse(RackBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ShelfBase(BaseModel):
+    rack_id: int
+    name: str
+
+class ShelfCreate(ShelfBase):
+    pass
+
+class ShelfResponse(ShelfBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StockAllocationBase(BaseModel):
+    product_id: int
+    shelf_id: int
+    quantity: float
+
+class StockAllocationCreate(StockAllocationBase):
+    pass
+
+class StockAllocationResponse(StockAllocationBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class WarehouseActivityResponse(BaseModel):
+    id: int
+    product_id: int
+    activity_type: str
+    quantity: float
+    source_shelf_id: Optional[int] = None
+    target_shelf_id: Optional[int] = None
+    timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AllocateStockPayload(BaseModel):
+    product_id: int
+    shelf_id: int
+    quantity: float = Field(..., gt=0)
+
+class TransferStockPayload(BaseModel):
+    product_id: int
+    source_shelf_id: int
+    target_shelf_id: int
+    quantity: float = Field(..., gt=0)

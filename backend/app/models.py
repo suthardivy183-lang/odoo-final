@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, event, inspect
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, event, inspect, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapper
 import json
 
@@ -40,6 +40,7 @@ class Product(Base):
     bom = relationship("BoM", back_populates="product", uselist=False, foreign_keys="[BoM.product_id]")
     # active_bom is mapped by Product.bom_id
     active_bom = relationship("BoM", foreign_keys=[bom_id])
+    allocations = relationship("StockAllocation", back_populates="product", cascade="all, delete-orphan")
 
     @property
     def stock(self) -> float:
@@ -178,6 +179,86 @@ class ManufacturingOrderOperation(Base):
     status = Column(String, default="Pending", nullable=False)  # Pending, In Progress, Completed
 
     manufacturing_order = relationship("ManufacturingOrder", back_populates="operations")
+
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    location = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    aisles = relationship("Aisle", back_populates="warehouse", cascade="all, delete-orphan")
+
+class Aisle(Base):
+    __tablename__ = "aisles"
+    id = Column(Integer, primary_key=True, index=True)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    warehouse = relationship("Warehouse", back_populates="aisles")
+    racks = relationship("Rack", back_populates="aisle", cascade="all, delete-orphan")
+
+class Rack(Base):
+    __tablename__ = "racks"
+    id = Column(Integer, primary_key=True, index=True)
+    aisle_id = Column(Integer, ForeignKey("aisles.id"), nullable=False)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    aisle = relationship("Aisle", back_populates="racks")
+    shelves = relationship("Shelf", back_populates="rack", cascade="all, delete-orphan")
+
+class Shelf(Base):
+    __tablename__ = "shelves"
+    id = Column(Integer, primary_key=True, index=True)
+    rack_id = Column(Integer, ForeignKey("racks.id"), nullable=False)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    rack = relationship("Rack", back_populates="shelves")
+    allocations = relationship("StockAllocation", back_populates="shelf", cascade="all, delete-orphan")
+
+class StockAllocation(Base):
+    __tablename__ = "stock_allocations"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    shelf_id = Column(Integer, ForeignKey("shelves.id"), nullable=False)
+    quantity = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Unique composite constraint on product_id & shelf_id
+    __table_args__ = (
+        UniqueConstraint('product_id', 'shelf_id', name='uq_stock_allocation_product_shelf'),
+    )
+
+    # Relationships
+    product = relationship("Product", back_populates="allocations")
+    shelf = relationship("Shelf", back_populates="allocations")
+
+class WarehouseActivity(Base):
+    __tablename__ = "warehouse_activities"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    activity_type = Column(String, nullable=False)  # Consumed, Allocated, Transferred
+    quantity = Column(Float, nullable=False)
+    source_shelf_id = Column(Integer, ForeignKey("shelves.id"), nullable=True)
+    target_shelf_id = Column(Integer, ForeignKey("shelves.id"), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    product = relationship("Product")
+    source_shelf = relationship("Shelf", foreign_keys=[source_shelf_id])
+    target_shelf = relationship("Shelf", foreign_keys=[target_shelf_id])
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

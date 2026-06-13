@@ -106,6 +106,7 @@ export interface ManufacturingOrderComponent {
   consumed_quantity: number;
   status: string;
   component_product?: Product;
+  storage_locations?: ComponentLocationInfo[];
 }
 
 export interface ManufacturingOrder {
@@ -184,4 +185,64 @@ export interface InsightsResponse {
   warnings: InsightItem[];
   opportunities: InsightItem[];
   successes: InsightItem[];
+}
+
+export interface Warehouse {
+  id: number;
+  name: string;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Aisle {
+  id: number;
+  warehouse_id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Rack {
+  id: number;
+  aisle_id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Shelf {
+  id: number;
+  rack_id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockAllocation {
+  id: number;
+  product_id: number;
+  shelf_id: number;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WarehouseActivity {
+  id: number;
+  product_id: number;
+  activity_type: string;
+  quantity: number;
+  source_shelf_id: number | null;
+  target_shelf_id: number | null;
+  timestamp: string;
+}
+
+export interface ComponentLocationInfo {
+  shelf_id: number;
+  shelf_name: string;
+  quantity: number;
+  warehouse_name: string;
+  aisle_name: string;
+  rack_name: string;
 }

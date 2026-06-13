@@ -8,6 +8,7 @@ import {
   Layers,
   ScrollText,
   LogOut,
+  Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 const NAV = [
   { to: "/dashboard", label: "AI Ops Center", icon: LayoutDashboard },
   { to: "/products", label: "Products", icon: Package },
+  { to: "/warehouse-mapping", label: "Warehouse Mapping", icon: Warehouse },
   { to: "/sales", label: "Sales Orders", icon: ShoppingCart },
   { to: "/purchase", label: "Purchase Orders", icon: Truck },
   { to: "/manufacturing", label: "Manufacturing", icon: Factory },

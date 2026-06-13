@@ -131,7 +131,7 @@ def test_partial_receiving():
     print("Checking Audit Logs...")
     audit_resp = client.get("/api/audit-logs", headers=headers)
     logs = audit_resp.json()
-    po_logs = [log for log in logs if log["table_name"] == "purchase_orders" and log["record_id"] == po_id]
+    po_logs = [log for log in logs if log["entity_type"] == "Purchase Order" and f"PO-{po_id:04d}" in log["entity_name"]]
     assert len(po_logs) > 0
     print(f"Verified {len(po_logs)} audit log records for PO {po_id}.")
 

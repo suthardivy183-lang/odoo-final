@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import List
 
 from backend.app.database import get_db
-from backend.app.models import ManufacturingOrder, ManufacturingOrderComponent, ManufacturingOrderOperation, Product, BoM
-from backend.app.schemas import ManufacturingOrderCreate, ManufacturingOrderUpdate, ManufacturingOrderResponse
+from backend.app.models import ManufacturingOrder, ManufacturingOrderComponent, ManufacturingOrderOperation, Product, BoM, StockAllocation, WarehouseActivity
+from backend.app.schemas import ManufacturingOrderCreate, ManufacturingOrderUpdate, ManufacturingOrderResponse, ComponentStorageLocation
 from backend.app.auth import get_current_user
 
 router = APIRouter(prefix="/api/manufacturing", tags=["Manufacturing Orders"])
@@ -92,6 +92,26 @@ def get_manufacturing_order(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Manufacturing Order with ID {mo_id} not found"
         )
+    # Attach component storage locations
+    for comp in mo.components:
+        allocations = db.query(StockAllocation).filter(
+            StockAllocation.product_id == comp.component_product_id
+        ).all()
+        locs = []
+        for alloc in allocations:
+            shelf = alloc.shelf
+            rack = shelf.rack if shelf else None
+            aisle = rack.aisle if rack else None
+            warehouse = aisle.warehouse if aisle else None
+            locs.append(ComponentStorageLocation(
+                shelf_id=alloc.shelf_id,
+                shelf_name=shelf.name if shelf else "",
+                quantity=alloc.quantity,
+                warehouse_name=warehouse.name if warehouse else "",
+                aisle_name=aisle.name if aisle else "",
+                rack_name=rack.name if rack else ""
+            ))
+        comp.storage_locations = locs
     return mo
 
 @router.put("/{mo_id}", response_model=ManufacturingOrderResponse)
@@ -243,6 +263,47 @@ def produce_manufacturing_order(
             comp_product.reserved_qty -= comp.required_quantity
             comp.consumed_quantity = comp.required_quantity
             comp.status = "Consumed"
+
+            # Deduct from StockAllocation sequentially and log activities
+            remaining_to_deduct = comp.required_quantity
+            allocations = db.query(StockAllocation).filter(
+                StockAllocation.product_id == comp.component_product_id
+            ).order_by(StockAllocation.created_at.asc()).all()
+
+            for alloc in allocations:
+                if remaining_to_deduct <= 0:
+                    break
+                if alloc.quantity <= remaining_to_deduct:
+                    deducted = alloc.quantity
+                    remaining_to_deduct -= deducted
+                    activity = WarehouseActivity(
+                        product_id=comp.component_product_id,
+                        activity_type="Consumed",
+                        quantity=deducted,
+                        source_shelf_id=alloc.shelf_id
+                    )
+                    db.add(activity)
+                    db.delete(alloc)
+                else:
+                    deducted = remaining_to_deduct
+                    alloc.quantity -= deducted
+                    remaining_to_deduct = 0.0
+                    activity = WarehouseActivity(
+                        product_id=comp.component_product_id,
+                        activity_type="Consumed",
+                        quantity=deducted,
+                        source_shelf_id=alloc.shelf_id
+                    )
+                    db.add(activity)
+
+            if remaining_to_deduct > 0:
+                activity = WarehouseActivity(
+                    product_id=comp.component_product_id,
+                    activity_type="Consumed",
+                    quantity=remaining_to_deduct,
+                    source_shelf_id=None
+                )
+                db.add(activity)
             
     # Produce finished good
     fg_product = db.query(Product).filter(Product.id == mo.product_id).first()

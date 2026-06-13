@@ -51,7 +51,19 @@ export function ManufacturingDetail({ moId, onClose }: { moId: number; onClose: 
                 const short = stock < c.required_quantity && c.status !== "Consumed";
                 return (
                   <TableRow key={c.id}>
-                    <TableCell>{c.component_product ? c.component_product.name : productName(c.component_product_id)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">
+                        {c.component_product ? c.component_product.name : productName(c.component_product_id)}
+                      </div>
+                      {c.storage_locations && c.storage_locations.length > 0 && (
+                        <div className="mt-1 text-xs text-muted-foreground bg-muted/50 p-1 rounded">
+                          <span className="font-semibold">Storage:</span>{" "}
+                          {c.storage_locations.map(loc =>
+                            `${loc.warehouse_name} (${loc.aisle_name} → ${loc.rack_name} → ${loc.shelf_name}): ${loc.quantity} units`
+                          ).join(", ")}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{c.required_quantity}</TableCell>
                     <TableCell className="text-right">{c.consumed_quantity}</TableCell>
                     <TableCell className={`text-right ${short ? "text-destructive font-semibold" : ""}`}>{stock}</TableCell>

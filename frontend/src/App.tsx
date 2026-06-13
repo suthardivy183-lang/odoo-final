@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Products from "@/pages/products/Products";
+import WarehouseMapping from "@/pages/warehouse-mapping/WarehouseMapping";
 import Sales from "@/pages/sales/Sales";
 import Purchase from "@/pages/purchase/Purchase";
 import Manufacturing from "@/pages/manufacturing/Manufacturing";
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/warehouse-mapping" element={<WarehouseMapping />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/purchase" element={<Purchase />} />
             <Route path="/manufacturing" element={<Manufacturing />} />
