@@ -1,6 +1,4 @@
 import * as React from "react";
-import Eye from "lucide-react/dist/esm/icons/eye.js";
-import Plus from "lucide-react/dist/esm/icons/plus.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,6 +8,7 @@ import { useProducts } from "@/hooks/useProducts";
 import type { ManufacturingOrder } from "@/lib/types";
 import { ManufacturingForm } from "./ManufacturingForm";
 import { ManufacturingDetail } from "./ManufacturingDetail";
+import { Eye, Plus } from "lucide-react";
 
 export default function Manufacturing() {
   const { data: orders, isLoading } = useManufacturingOrders();

@@ -1,21 +1,9 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import Activity from "lucide-react/dist/esm/icons/activity.js";
-import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.js";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
-import Boxes from "lucide-react/dist/esm/icons/boxes.js";
-import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2.js";
-import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list.js";
-import Factory from "lucide-react/dist/esm/icons/factory.js";
-import Gauge from "lucide-react/dist/esm/icons/gauge.js";
-import PackageCheck from "lucide-react/dist/esm/icons/package-check.js";
-import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.js";
-import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
-import TimerReset from "lucide-react/dist/esm/icons/timer-reset.js";
-import TrendingUp from "lucide-react/dist/esm/icons/trending-up.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Activity, AlertTriangle, ArrowRight, Boxes, CheckCircle2, ClipboardList, Factory, Gauge, PackageCheck, ShieldCheck, ShoppingCart, TimerReset, TrendingUp } from "lucide-react";
 import {
   useActivityTimeline,
   useDashboard,

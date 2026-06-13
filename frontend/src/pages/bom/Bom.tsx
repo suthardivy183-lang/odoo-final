@@ -1,7 +1,4 @@
 import * as React from "react";
-import Pencil from "lucide-react/dist/esm/icons/pencil.js";
-import Plus from "lucide-react/dist/esm/icons/plus.js";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -9,6 +6,7 @@ import { useBoms, useBomActions } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
 import type { BillOfMaterials } from "@/lib/types";
 import { BomForm } from "./BomForm";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 export default function Bom() {
   const { data: boms, isLoading } = useBoms();

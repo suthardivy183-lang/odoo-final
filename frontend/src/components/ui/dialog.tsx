@@ -1,6 +1,6 @@
 import * as React from "react";
-import X from "lucide-react/dist/esm/icons/x.js";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 interface DialogProps {
   open: boolean;

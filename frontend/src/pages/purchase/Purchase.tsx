@@ -1,6 +1,4 @@
 import * as React from "react";
-import Eye from "lucide-react/dist/esm/icons/eye.js";
-import Plus from "lucide-react/dist/esm/icons/plus.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -9,6 +7,7 @@ import { usePurchaseOrders } from "@/hooks/useOrders";
 import type { PurchaseOrder } from "@/lib/types";
 import { PurchaseForm } from "./PurchaseForm";
 import { PurchaseDetail } from "./PurchaseDetail";
+import { Eye, Plus } from "lucide-react";
 
 export default function Purchase() {
   const { data: orders, isLoading } = usePurchaseOrders();

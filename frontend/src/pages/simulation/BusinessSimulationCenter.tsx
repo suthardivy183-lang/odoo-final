@@ -1,18 +1,4 @@
 import * as React from "react";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
-import CircleDollarSign from "lucide-react/dist/esm/icons/circle-dollar-sign.js";
-import Clock3 from "lucide-react/dist/esm/icons/clock-3.js";
-import CopyCheck from "lucide-react/dist/esm/icons/copy-check.js";
-import FlaskConical from "lucide-react/dist/esm/icons/flask-conical.js";
-import GitCompareArrows from "lucide-react/dist/esm/icons/git-compare-arrows.js";
-import Landmark from "lucide-react/dist/esm/icons/landmark.js";
-import PackageSearch from "lucide-react/dist/esm/icons/package-search.js";
-import Play from "lucide-react/dist/esm/icons/play.js";
-import Route from "lucide-react/dist/esm/icons/route.js";
-import ShieldAlert from "lucide-react/dist/esm/icons/shield-alert.js";
-import TriangleAlert from "lucide-react/dist/esm/icons/triangle-alert.js";
-import WandSparkles from "lucide-react/dist/esm/icons/wand-sparkles.js";
-import Warehouse from "lucide-react/dist/esm/icons/warehouse.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +8,7 @@ import { useBoms, useManufacturingOrders, usePurchaseOrders, useSalesOrders } fr
 import { useProducts } from "@/hooks/useProducts";
 import { cn } from "@/lib/utils";
 import type { BillOfMaterials, Product, PurchaseOrder } from "@/lib/types";
+import { ArrowRight, CircleDollarSign, Clock3, CopyCheck, FlaskConical, GitCompareArrows, Landmark, PackageSearch, Play, Route, ShieldAlert, TriangleAlert, WandSparkles, Warehouse } from "lucide-react";
 
 type ScenarioType =
   | "sales-order"

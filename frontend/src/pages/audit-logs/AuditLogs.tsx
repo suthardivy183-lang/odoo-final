@@ -1,19 +1,11 @@
 import * as React from "react";
-import Activity from "lucide-react/dist/esm/icons/activity.js";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
-import Factory from "lucide-react/dist/esm/icons/factory.js";
-import Filter from "lucide-react/dist/esm/icons/filter.js";
-import Layers from "lucide-react/dist/esm/icons/layers.js";
-import Package from "lucide-react/dist/esm/icons/package.js";
-import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
-import Truck from "lucide-react/dist/esm/icons/truck.js";
-import User from "lucide-react/dist/esm/icons/user.js";
 import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useActivityTimeline, useActivityUsers } from "@/hooks/useOrders";
 import type { ActivityEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Activity, ArrowRight, Factory, Filter, Layers, Package, ShoppingCart, Truck, User } from "lucide-react";
 
 const ENTITY_FILTERS = [
   { value: "", label: "All Activities" },

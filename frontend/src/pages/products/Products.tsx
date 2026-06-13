@@ -1,7 +1,4 @@
 import * as React from "react";
-import Pencil from "lucide-react/dist/esm/icons/pencil.js";
-import Plus from "lucide-react/dist/esm/icons/plus.js";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useProducts, useDeleteProduct } from "@/hooks/useProducts";
 import type { Product } from "@/lib/types";
 import { ProductForm } from "./ProductForm";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 export default function Products() {
   const [search, setSearch] = React.useState("");

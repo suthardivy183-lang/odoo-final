@@ -1,6 +1,4 @@
 import * as React from "react";
-import Eye from "lucide-react/dist/esm/icons/eye.js";
-import Plus from "lucide-react/dist/esm/icons/plus.js";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -9,6 +7,7 @@ import { useSalesOrders } from "@/hooks/useOrders";
 import type { SalesOrder } from "@/lib/types";
 import { SalesForm } from "./SalesForm";
 import { SalesDetail } from "./SalesDetail";
+import { Eye, Plus } from "lucide-react";
 
 export default function Sales() {
   const { data: orders, isLoading } = useSalesOrders();
