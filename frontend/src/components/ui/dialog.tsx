@@ -25,7 +25,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
     >
       <div
         className={cn(
-          "animate-in-up relative w-full max-w-2xl rounded-xl border border-border bg-background p-6 shadow-xl",
+          "animate-in-up glass-strong relative w-full max-w-2xl rounded-xl p-6",
           className
         )}
         onClick={(e) => e.stopPropagation()}

@@ -149,7 +149,7 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-border bg-canvas/80 px-8 py-4 backdrop-blur-md">
+    <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-border bg-background/60 px-8 py-4 backdrop-blur-xl backdrop-saturate-150">
       <div className="min-w-0">
         <h1 className="truncate text-[17px] font-semibold tracking-tight text-foreground">{title}</h1>
         {description && <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{description}</p>}

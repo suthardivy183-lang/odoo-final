@@ -376,9 +376,9 @@ export default function WarehouseMapping() {
   const loading = whLoading || shelvesLoading || aislesLoading;
 
   return (
-    <div className="flex h-screen flex-col bg-canvas">
+    <div className="aurora flex h-screen flex-col bg-canvas">
       {/* ───────────────────────── Header ───────────────────────── */}
-      <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border bg-canvas/85 px-8 py-3.5 backdrop-blur-md">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border bg-background/55 px-8 py-3.5 backdrop-blur-xl backdrop-saturate-150">
         <div className="mr-auto flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#7B61FF] text-white shadow-sm shadow-primary/30">
             <WarehouseIcon className="h-[18px] w-[18px]" />
@@ -410,7 +410,7 @@ export default function WarehouseMapping() {
           {showSearchResults && searchQuery.trim() && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowSearchResults(false)} />
-              <div className="animate-in-up absolute left-0 right-0 z-40 mt-1.5 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
+              <div className="animate-in-up glass-strong absolute left-0 right-0 z-40 mt-1.5 overflow-hidden rounded-xl">
                 {searchResults.length === 0 ? (
                   <div className="px-4 py-6 text-center text-[13px] text-muted-foreground">No matching products or locations</div>
                 ) : (
@@ -494,7 +494,7 @@ export default function WarehouseMapping() {
           )}
 
           {/* Map surface */}
-          <div className="rounded-xl border border-border bg-background shadow-sm">
+          <div className="glass-strong rounded-xl">
             {loading ? (
               <div className="flex h-72 items-center justify-center text-[13px] text-muted-foreground">Loading map…</div>
             ) : !selectedWhId ? (
@@ -601,7 +601,7 @@ export default function WarehouseMapping() {
           </div>
 
           {/* Recent movements — a table is genuinely right here */}
-          <div className="mt-6 rounded-xl border border-border bg-background shadow-sm">
+          <div className="glass-strong mt-6 rounded-xl">
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <h2 className="text-[13px] font-semibold text-foreground">Recent movements</h2>
               {selectedShelfId ? (
@@ -649,7 +649,7 @@ export default function WarehouseMapping() {
         </main>
 
         {/* DETAIL RAIL */}
-        <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-background lg:block">
+        <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-background/55 backdrop-blur-xl backdrop-saturate-150 lg:block">
           {!activeShelf ? (
             <div className="p-6">
               <div className="rounded-xl border border-dashed border-border p-6 text-center">
@@ -873,7 +873,7 @@ function MetricCard({
   pct?: number;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+    <div className="glass rounded-xl p-4">
       <div className="flex items-center gap-2">
         <span
           className={cn(
