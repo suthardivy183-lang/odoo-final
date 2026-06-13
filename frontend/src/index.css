@@ -3,56 +3,50 @@
 @tailwind utilities;
 
 /*
-  Design system — 70% Linear / 30% Stripe
-  ----------------------------------------
-  Linear drives: shell, navigation, ops center, workflows
-    · single indigo accent (#5E6AD2)
-    · low-contrast hairline borders, tight grid, restrained elevation
-  Stripe drives: forms, tables, detail/record pages
-    · near-white canvas (#f6f9fc), deep-navy ink (#0d253d)
-    · soft layered shadows (rgba(60,66,87,…)), borderless surfaces by spacing
+  Design system - professional white and red with Stripe material depth.
+  White drives the app canvas and panels; red is reserved for brand, focus, and priority.
 */
 
 @layer base {
   :root {
     /* Surfaces */
-    --background: 0 0% 100%;            /* card / panel white */
-    --canvas: 213 33% 98%;             /* Stripe #f6f9fc app canvas */
-    --foreground: 211 56% 15%;         /* Stripe deep navy ink #0d253d */
+    --background: 0 0% 100%;
+    --canvas: 0 0% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 211 56% 15%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 211 56% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand — Linear indigo, the single chromatic accent */
-    --primary: 0 72% 51%;              /* #DC2626 — professional red */
+    /* Brand */
+    --primary: 0 72% 45%;
     --primary-foreground: 0 0% 100%;
-    --primary-emphasis: 0 72% 44%;     /* hover / pressed (#B91C1C) */
-    --primary-wash: 0 86% 97%;         /* tinted red surface (#FEF2F2) */
+    --primary-emphasis: 0 74% 38%;
+    --primary-wash: 0 86% 97%;
 
-    /* Neutral surfaces (Linear fog/platinum family) */
-    --secondary: 220 23% 96.5%;
-    --secondary-foreground: 211 40% 22%;
-    --muted: 220 23% 97%;
-    --muted-foreground: 218 9% 46%;    /* Linear Fog #8a8f98, nudged for contrast */
-    --accent: 222 28% 95%;             /* hover surface */
-    --accent-foreground: 211 45% 20%;
+    /* Neutral surfaces */
+    --secondary: 220 24% 96%;
+    --secondary-foreground: 222 35% 20%;
+    --muted: 220 23% 96%;
+    --muted-foreground: 219 12% 43%;
+    --accent: 224 32% 94%;
+    --accent-foreground: 222 42% 18%;
 
     /* Status */
     --destructive: 358 70% 56%;
     --destructive-foreground: 0 0% 100%;
     --success: 158 64% 38%;
     --warning: 32 90% 48%;
-    --info: 0 72% 51%;
+    --info: 0 72% 45%;
 
     /* Lines & focus */
-    --border: 216 20% 91%;             /* hairline */
-    --border-strong: 216 18% 84%;
+    --border: 221 24% 89%;
+    --border-strong: 221 18% 80%;
     --input: 216 20% 89%;
-    --ring: 0 72% 51%;
+    --ring: 0 72% 45%;
 
-    --radius: 0.625rem;                /* 10px — Linear/Stripe hybrid */
+    --radius: 0.5rem;
   }
 }
 
@@ -68,13 +62,18 @@
 
   body {
     @apply bg-canvas text-foreground antialiased;
+    background:
+      linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 42%, hsl(0 86% 97% / 0.66) 100%),
+      linear-gradient(115deg, transparent 0 24%, hsl(0 72% 45% / 0.055) 24% 29%, transparent 29% 100%),
+      linear-gradient(65deg, transparent 0 66%, hsl(0 72% 45% / 0.045) 66% 71%, transparent 71% 100%);
+    background-attachment: fixed;
     font-feature-settings: "cv11", "ss01";
     font-variation-settings: normal;
   }
 
-  /* Display headings — Linear/Stripe negative tracking */
+  /* Display headings */
   h1, h2, h3, h4 {
-    @apply tracking-tight;
+    letter-spacing: 0;
   }
 
   /* Tabular numerals for money / metrics */
@@ -83,9 +82,8 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Selection — indigo wash */
   ::selection {
-    background: hsl(0 72% 51% / 0.16);
+    background: hsl(0 72% 45% / 0.16);
   }
 
   /* Refined scrollbars */
@@ -109,11 +107,40 @@
 }
 
 @layer utilities {
-  /* Subtle grid/glow background for command-center surfaces (Linear) */
+  .app-canvas {
+    background-image:
+      linear-gradient(to right, hsl(221 24% 89% / 0.42) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(221 24% 89% / 0.35) 1px, transparent 1px),
+      linear-gradient(138deg, hsl(0 72% 45% / 0.08), transparent 28%),
+      linear-gradient(36deg, transparent 58%, hsl(0 72% 45% / 0.055));
+    background-size: 36px 36px, 36px 36px, 100% 100%, 100% 100%;
+  }
+
+  .surface-panel {
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.92), hsl(0 0% 100% / 0.78)),
+      linear-gradient(135deg, hsl(0 72% 45% / 0.045), transparent 45%);
+    border: 1px solid hsl(221 24% 89% / 0.9);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.85) inset,
+      0 18px 45px -28px hsl(222 47% 11% / 0.35),
+      0 4px 14px -8px hsl(222 47% 11% / 0.16);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
+
+  .stripe-sheen {
+    background-image:
+      linear-gradient(135deg, hsl(0 72% 45% / 0.28), transparent 34%),
+      linear-gradient(225deg, hsl(0 0% 100% / 0.08), transparent 40%),
+      linear-gradient(180deg, hsl(222 47% 11%), hsl(224 42% 16%));
+  }
+
+  /* Subtle grid background for command-center surfaces */
   .bg-grid-faint {
     background-image:
-      linear-gradient(to right, hsl(216 20% 91% / 0.6) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(216 20% 91% / 0.6) 1px, transparent 1px);
+      linear-gradient(to right, hsl(221 24% 89% / 0.6) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(221 24% 89% / 0.6) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
@@ -121,15 +148,14 @@
     animation: in-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* ───────── Glassmorphism ───────── */
   .glass {
-    background-color: hsl(0 0% 100% / 0.6);
+    background-color: hsl(0 0% 100% / 0.64);
     -webkit-backdrop-filter: blur(14px) saturate(170%);
     backdrop-filter: blur(14px) saturate(170%);
     border: 1px solid hsl(0 0% 100% / 0.55);
     box-shadow:
       inset 0 1px 0 hsl(0 0% 100% / 0.65),
-      0 8px 24px -12px hsl(0 45% 30% / 0.18);
+      0 8px 24px -12px hsl(222 47% 11% / 0.18);
   }
   .glass-strong {
     background-color: hsl(0 0% 100% / 0.78);
@@ -138,14 +164,13 @@
     border: 1px solid hsl(0 0% 100% / 0.6);
     box-shadow:
       inset 0 1px 0 hsl(0 0% 100% / 0.7),
-      0 12px 32px -14px hsl(0 45% 30% / 0.22);
+      0 12px 32px -14px hsl(222 47% 11% / 0.22);
   }
-  /* Soft colored backdrop so the frosted glass actually reads on a light canvas */
+
   .aurora {
     background-image:
-      radial-gradient(42rem 42rem at 10% -10%, hsl(0 90% 70% / 0.16), transparent 60%),
-      radial-gradient(38rem 38rem at 100% 0%, hsl(350 90% 72% / 0.13), transparent 55%),
-      radial-gradient(34rem 34rem at 60% 120%, hsl(14 95% 66% / 0.12), transparent 60%);
+      linear-gradient(135deg, hsl(0 72% 45% / 0.10), transparent 42%),
+      linear-gradient(65deg, transparent 54%, hsl(0 72% 45% / 0.07));
   }
 }
 

@@ -7,16 +7,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Linear primary — indigo with a hairline top-highlight + soft shadow
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-emphasis hover:shadow",
+          "bg-primary text-primary-foreground shadow-[0_1px_0_rgba(255,255,255,0.24)_inset,0_10px_22px_-14px_rgba(185,28,28,0.82)] hover:bg-primary-emphasis hover:shadow-md",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:brightness-95",
         outline:
-          "border border-border-strong bg-background text-foreground shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "border border-border-strong bg-white/78 text-foreground shadow-xs backdrop-blur hover:bg-white hover:text-accent-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-accent",
-        ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          "bg-white/70 text-secondary-foreground shadow-xs ring-1 ring-border/70 hover:bg-white",
+        ghost: "text-muted-foreground hover:bg-white/72 hover:text-accent-foreground hover:shadow-xs",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

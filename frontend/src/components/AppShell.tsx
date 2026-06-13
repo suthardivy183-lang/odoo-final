@@ -58,15 +58,15 @@ export function AppShell() {
   const initial = (user?.username?.[0] ?? "?").toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-canvas">
-      <aside className="flex w-[244px] shrink-0 flex-col border-r border-border bg-background">
+    <div className="flex h-screen overflow-hidden bg-canvas app-canvas">
+      <aside className="flex w-[252px] shrink-0 flex-col border-r border-white/70 bg-white/78 shadow-[8px_0_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
         {/* Brand */}
         <div className="flex h-16 items-center gap-2.5 px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-emphasis text-primary-foreground shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-primary to-primary-emphasis text-primary-foreground shadow-[0_8px_18px_-10px_rgba(185,28,28,0.75)] ring-1 ring-white/70">
             <Boxes className="h-[18px] w-[18px]" />
           </div>
           <div className="leading-tight">
-            <div className="text-[13px] font-semibold tracking-tight text-foreground">Shiv Furniture</div>
+            <div className="text-[13px] font-semibold text-foreground">Shiv Furniture</div>
             <div className="text-[11px] font-medium text-muted-foreground">Works ERP</div>
           </div>
         </div>
@@ -88,10 +88,10 @@ export function AppShell() {
                       to={item.to}
                       className={({ isActive }) =>
                         cn(
-                          "group flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-colors",
+                          "group flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-all",
                           isActive
-                            ? "bg-primary/[0.08] text-primary"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                            ? "bg-white text-primary shadow-sm ring-1 ring-border/80"
+                            : "text-muted-foreground hover:bg-white/70 hover:text-foreground hover:shadow-xs"
                         )
                       }
                     >
@@ -115,9 +115,9 @@ export function AppShell() {
         </nav>
 
         {/* User */}
-        <div className="border-t border-border p-3">
-          <div className="flex items-center gap-2.5 rounded-md px-1.5 py-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-[13px] font-semibold text-secondary-foreground ring-1 ring-border">
+        <div className="border-t border-white/70 p-3">
+          <div className="flex items-center gap-2.5 rounded-md bg-white/58 px-1.5 py-1 shadow-xs ring-1 ring-border/70">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-wash text-[13px] font-semibold text-primary ring-1 ring-primary/20">
               {initial}
             </div>
             <div className="min-w-0 flex-1 leading-tight">
@@ -128,7 +128,7 @@ export function AppShell() {
               onClick={logout}
               aria-label="Sign out"
               title="Sign out"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white hover:text-foreground"
             >
               <LogOut className="h-[18px] w-[18px]" />
             </button>
@@ -153,9 +153,9 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-border bg-background/60 px-8 py-4 backdrop-blur-xl backdrop-saturate-150">
+    <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/70 bg-white/64 px-8 py-4 shadow-[0_8px_26px_-24px_rgba(15,23,42,0.5)] backdrop-blur-2xl backdrop-saturate-150">
       <div className="min-w-0">
-        <h1 className="truncate text-[17px] font-semibold tracking-tight text-foreground">{title}</h1>
+        <h1 className="truncate text-[17px] font-semibold text-foreground">{title}</h1>
         {description && <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{description}</p>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}

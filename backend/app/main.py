@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from jose import jwt, JWTError
 from backend.app.config import settings
 from backend.app.utils.context import current_user_id, current_username
@@ -62,7 +64,26 @@ app.include_router(digital_twin.router, dependencies=[Depends(require_module("da
 
 @app.get("/")
 def read_root():
+    import os
+    dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    index_file = os.path.join(dist_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
     return {
         "message": f"Welcome to {settings.PROJECT_NAME} API",
         "docs_url": "/docs"
     }
+
+# Serve React frontend built files if dist exists in production
+import os
+dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+if os.path.exists(dist_path):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+
+    @app.get("/{fallback_path:path}")
+    def serve_frontend(fallback_path: str):
+        if fallback_path.startswith("api") or fallback_path.startswith("docs") or fallback_path.startswith("openapi.json"):
+            return None
+        index_file = os.path.join(dist_path, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)

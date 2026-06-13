@@ -70,28 +70,28 @@ const PRIORITY_CONFIG: Record<
     label: "High Priority",
     rank: 2,
     icon: TimerReset,
-    row: "border-orange-200 bg-orange-50/70",
-    pill: "bg-orange-100 text-orange-700 ring-orange-200",
-    marker: "bg-orange-500",
-    value: "text-orange-700",
+    row: "border-red-100 bg-white/72",
+    pill: "bg-red-50 text-red-700 ring-red-200",
+    marker: "bg-red-400",
+    value: "text-red-700",
   },
   medium: {
     label: "Medium Priority",
     rank: 3,
     icon: Activity,
-    row: "border-blue-200 bg-blue-50/70",
-    pill: "bg-blue-100 text-blue-700 ring-blue-200",
-    marker: "bg-blue-500",
-    value: "text-blue-700",
+    row: "border-border bg-white/70",
+    pill: "bg-white text-slate-700 ring-border",
+    marker: "bg-slate-400",
+    value: "text-slate-800",
   },
   healthy: {
     label: "Healthy",
     rank: 4,
     icon: CheckCircle2,
-    row: "border-emerald-200 bg-emerald-50/70",
-    pill: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    marker: "bg-emerald-500",
-    value: "text-emerald-700",
+    row: "border-border bg-white/64",
+    pill: "bg-white text-slate-600 ring-border",
+    marker: "bg-slate-300",
+    value: "text-slate-800",
   },
 };
 
@@ -226,11 +226,11 @@ function estimateHealthScore(stats: DashboardStats) {
 
 function businessStatus(score: number, criticalCount: number, highPriorityCount: number) {
   if (score < 40 || criticalCount >= 5) return { label: "Critical", className: "text-red-700 bg-red-50 ring-red-200" };
-  if (score < 60 || criticalCount >= 3) return { label: "At Risk", className: "text-orange-700 bg-orange-50 ring-orange-200" };
+  if (score < 60 || criticalCount >= 3) return { label: "At Risk", className: "text-red-700 bg-red-50 ring-red-200" };
   if (score < 80 || criticalCount > 0 || highPriorityCount > 0) {
-    return { label: "Attention Required", className: "text-amber-700 bg-amber-50 ring-amber-200" };
+    return { label: "Attention Required", className: "text-red-700 bg-red-50 ring-red-200" };
   }
-  return { label: "Healthy", className: "text-emerald-700 bg-emerald-50 ring-emerald-200" };
+  return { label: "Healthy", className: "text-slate-700 bg-white/80 ring-white/40" };
 }
 
 function isResolvedLogToday(log: ActivityEvent) {
@@ -312,7 +312,7 @@ function HeaderMetric({
   tone: string;
 }) {
   return (
-    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+    <Card>
       <CardContent className="flex items-center gap-4 p-5">
         <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-md", tone)}>
           <Icon className="h-5 w-5" />
@@ -330,7 +330,7 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
   const navigate = useNavigate();
 
   return (
-    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+    <Card>
       <CardHeader className="border-b border-slate-100 p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -340,7 +340,7 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
             </CardTitle>
             <p className="mt-2 text-sm text-slate-500">Sorted by business impact.</p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+          <div className="rounded-md border border-border bg-white/70 px-3 py-2 text-sm font-medium text-slate-600 shadow-xs">
             {items.length} active signals
           </div>
         </div>
@@ -365,7 +365,7 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
                 <div
                   key={item.id}
                   className={cn(
-                    "grid gap-4 rounded-lg border p-4 transition-colors md:grid-cols-[11rem_minmax(0,1.25fr)_minmax(0,1fr)_13rem] md:items-center",
+                    "grid gap-4 rounded-lg border p-4 shadow-xs transition-colors md:grid-cols-[11rem_minmax(0,1.25fr)_minmax(0,1fr)_13rem] md:items-center",
                     config.row
                   )}
                 >
@@ -427,14 +427,14 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
 function ManufacturingReadiness({ rows, loading }: { rows: ReadinessRow[]; loading: boolean }) {
   const statusClass: Record<ReadinessRow["status"], string> = {
     Blocked: "bg-red-50 text-red-700 ring-red-200",
-    Constrained: "bg-orange-50 text-orange-700 ring-orange-200",
-    "In Progress": "bg-blue-50 text-blue-700 ring-blue-200",
-    Ready: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    Constrained: "bg-red-50 text-red-700 ring-red-200",
+    "In Progress": "bg-white text-slate-700 ring-border",
+    Ready: "bg-white text-slate-700 ring-border",
     Completed: "bg-slate-100 text-slate-700 ring-slate-200",
   };
 
   return (
-    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+    <Card>
       <CardHeader className="border-b border-slate-100 p-6">
         <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
           <Factory className="h-5 w-5 text-primary" />
@@ -446,9 +446,9 @@ function ManufacturingReadiness({ rows, loading }: { rows: ReadinessRow[]; loadi
           <div className="p-6 text-sm text-slate-500">Loading manufacturing readiness...</div>
         ) : rows.length === 0 ? (
           <div className="p-6">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-              <p className="text-base font-bold text-emerald-900">Production queue clear</p>
-              <p className="mt-1 text-sm text-emerald-700">No active manufacturing orders need material review.</p>
+            <div className="rounded-lg border border-red-100 bg-white/80 p-5 shadow-xs">
+              <p className="text-base font-bold text-slate-950">Production queue clear</p>
+              <p className="mt-1 text-sm text-slate-600">No active manufacturing orders need material review.</p>
             </div>
           </div>
         ) : (
@@ -474,7 +474,7 @@ function ManufacturingReadiness({ rows, loading }: { rows: ReadinessRow[]; loadi
                       <div
                         className={cn(
                           "h-2 rounded-full",
-                          row.status === "Blocked" ? "bg-red-500" : row.status === "Constrained" ? "bg-orange-500" : "bg-emerald-500"
+                          row.status === "Blocked" ? "bg-red-500" : row.status === "Constrained" ? "bg-red-400" : "bg-slate-400"
                         )}
                         style={{ width: `${readiness}%` }}
                       />
@@ -505,10 +505,10 @@ function SnapshotCard({
   detail: string;
 }) {
   return (
-    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+    <Card>
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white/80 text-slate-700 shadow-xs ring-1 ring-border/70">
             <Icon className="h-5 w-5" />
           </div>
           <span className="text-xs font-semibold uppercase text-slate-400">Live</span>
@@ -560,13 +560,13 @@ export default function Dashboard() {
   const readinessRows = manufacturingReadiness(manufacturingOrders);
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full">
       <PageHeader title="AI Operations Center" description="What is broken, what needs attention, what should happen next." />
 
       <div className="space-y-6 p-6 lg:p-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="surface-panel rounded-lg p-6">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_repeat(3,minmax(11rem,0.6fr))]">
-            <div className="rounded-lg border border-slate-200 bg-slate-950 p-6 text-white">
+            <div className="stripe-sheen rounded-lg border border-white/10 p-6 text-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.9)]">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase text-slate-400">Business Health</p>
@@ -575,10 +575,10 @@ export default function Dashboard() {
                     <span className="pb-2 text-2xl font-semibold text-slate-400">/100</span>
                   </div>
                 </div>
-                <Gauge className="h-8 w-8 text-red-300" />
+                <Gauge className="h-8 w-8 text-red-200" />
               </div>
               <div className="mt-6 h-2 rounded-full bg-white/15">
-                <div className="h-2 rounded-full bg-red-400" style={{ width: `${healthScore}%` }} />
+                <div className="h-2 rounded-full bg-gradient-to-r from-primary to-red-300" style={{ width: `${healthScore}%` }} />
               </div>
               <div className={cn("mt-5 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-bold ring-1", status.className)}>
                 <ShieldCheck className="h-4 w-4" />
@@ -587,8 +587,8 @@ export default function Dashboard() {
             </div>
 
             <HeaderMetric icon={AlertTriangle} label="Critical Issues" value={criticalCount} tone="bg-red-50 text-red-700" />
-            <HeaderMetric icon={TimerReset} label="High Priority" value={highPriorityCount} tone="bg-orange-50 text-orange-700" />
-            <HeaderMetric icon={PackageCheck} label="Resolved Today" value={resolvedToday} tone="bg-emerald-50 text-emerald-700" />
+            <HeaderMetric icon={TimerReset} label="High Priority" value={highPriorityCount} tone="bg-red-50 text-red-700" />
+            <HeaderMetric icon={PackageCheck} label="Resolved Today" value={resolvedToday} tone="bg-white text-slate-700 ring-1 ring-border/70" />
           </div>
         </section>
 
