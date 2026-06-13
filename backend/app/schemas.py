@@ -268,3 +268,27 @@ class AuditLogResponse(BaseModel):
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Insights Schemas
+class InsightItem(BaseModel):
+    severity: str
+    category: str
+    title: str
+    description: str
+    impact: str
+    recommendation: str
+    confidence: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InsightsResponse(BaseModel):
+    business_health_score: float
+    summary: str
+    critical_insights: List[InsightItem]
+    warnings: List[InsightItem]
+    opportunities: List[InsightItem]
+    successes: List[InsightItem]
+
+    model_config = ConfigDict(from_attributes=True)

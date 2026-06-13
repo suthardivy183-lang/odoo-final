@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
 from backend.app.config import settings
 from backend.app.utils.context import current_user_id, current_username
-from backend.app.routers import auth, products, sales_orders, purchase_orders, bom, manufacturing, audit_logs, dashboard
+from backend.app.routers import auth, products, sales_orders, purchase_orders, bom, manufacturing, audit_logs, dashboard, insights
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -52,6 +52,7 @@ app.include_router(bom.router)
 app.include_router(manufacturing.router)
 app.include_router(audit_logs.router)
 app.include_router(dashboard.router)
+app.include_router(insights.router)
 
 @app.get("/")
 def read_root():
