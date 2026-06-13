@@ -1,19 +1,21 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from dotenv import load_dotenv
-import os
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from backend.app.config import settings
 
-load_dotenv()
+# For SQLite, check_same_thread needs to be False
+connect_args = {}
+if settings.DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args=connect_args
+)
 
-engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
-class Base(DeclarativeBase):
-    pass
-
+Base = declarative_base()
 
 def get_db():
     db = SessionLocal()

@@ -3,6 +3,9 @@
 
 # Dependencies
 node_modules/
+venv/
+.venv/
+env/
 
 # Environment variables
 .env
@@ -14,8 +17,14 @@ dist/
 build/
 .next/
 __pycache__/
+*.py[cod]
 *.pyc
 *.pyo
+*$py.class
+
+# Database
+*.db
+*.sqlite3
 
 # OS files
 .DS_Store
