@@ -12,15 +12,19 @@ import {
   MapPin,
   Activity,
   Info,
+  Search,
+  Check,
+  ChevronRight,
+  Settings,
+  X,
+  RefreshCw,
+  LayoutGrid,
 } from "lucide-react";
-import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useProducts } from "@/hooks/useProducts";
 import {
   useWarehouses,
@@ -77,15 +81,12 @@ function QRPlaceholder({ value }: { value: string }) {
   const blocks = React.useMemo(() => getBlocks(value), [value]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-white border rounded-lg shadow-sm">
+    <div className="flex flex-col items-center justify-center p-3 bg-white border rounded-lg shadow-sm">
       <svg width="100" height="100" viewBox="0 0 15 15" className="text-black fill-current">
         {blocks.map((b, idx) => (
           <rect key={idx} x={b.c} y={b.r} width="1" height="1" />
         ))}
       </svg>
-      <div className="mt-2 text-[10px] font-mono text-muted-foreground break-all text-center max-w-[180px]">
-        {value}
-      </div>
     </div>
   );
 }
@@ -96,14 +97,13 @@ export default function WarehouseMapping() {
   const { data: warehouses, isLoading: whLoading } = useWarehouses();
   const { data: activities } = useWarehouseActivities();
 
-  // --- Selections ---
+  // Selections
   const [selectedWhId, setSelectedWhId] = React.useState<number | undefined>();
-  const [selectedAisleId, setSelectedAisleId] = React.useState<number | undefined>();
   const [selectedShelfId, setSelectedShelfId] = React.useState<number | undefined>();
 
-  // Fetch children based on selections
+  // Fetch all structural elements
   const { data: aisles, isLoading: aislesLoading } = useAisles(selectedWhId);
-  const { data: racks, isLoading: racksLoading } = useRacks(selectedAisleId);
+  const { data: allRacks } = useRacks();
   const { data: shelves, isLoading: shelvesLoading } = useShelves();
 
   // Mutations
@@ -118,19 +118,26 @@ export default function WarehouseMapping() {
   const allocateStock = useAllocateStock();
   const transferStock = useTransferStock();
 
-  // --- Modal States ---
+  // --- Search & Highlights State ---
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [showSearchResults, setShowSearchResults] = React.useState(false);
+
+  // --- Inline Forms State (within details panel) ---
+  const [showAllocateForm, setShowAllocateForm] = React.useState(false);
+  const [showTransferForm, setShowTransferForm] = React.useState(false);
+
+  // --- Edit Mode (Toggles Admin Structure Settings) ---
+  const [editMode, setEditMode] = React.useState(false);
+
+  // --- CRUD Modal States ---
   const [whModal, setWhModal] = React.useState<{ mode: "create" | "edit"; data?: Warehouse } | null>(null);
   const [aisleModal, setAisleModal] = React.useState<{ mode: "create" | "edit"; warehouse_id: number; data?: Aisle } | null>(null);
   const [rackModal, setRackModal] = React.useState<{ mode: "create" | "edit"; aisle_id: number; data?: Rack } | null>(null);
   const [shelfModal, setShelfModal] = React.useState<{ mode: "create" | "edit"; rack_id: number; data?: Shelf } | null>(null);
 
-  const [allocModalOpen, setAllocModalOpen] = React.useState(false);
-  const [transferModalOpen, setTransferModalOpen] = React.useState(false);
-
   // --- Local Form Inputs ---
   const [whName, setWhName] = React.useState("");
   const [whLoc, setWhLoc] = React.useState("");
-
   const [aisleName, setAisleName] = React.useState("");
   const [rackName, setRackName] = React.useState("");
   const [shelfName, setShelfName] = React.useState("");
@@ -142,26 +149,15 @@ export default function WarehouseMapping() {
   const [transferTgtShelfId, setTransferTgtShelfId] = React.useState<number | undefined>();
   const [transferQty, setTransferQty] = React.useState<number>(0);
 
-  // --- Reset selections if parent changes ---
+  // QR Code copied state
+  const [copied, setCopied] = React.useState(false);
+
+  // --- Default Selection ---
   React.useEffect(() => {
     if (warehouses && warehouses.length > 0 && selectedWhId === undefined) {
       setSelectedWhId(warehouses[0].id);
     }
   }, [warehouses, selectedWhId]);
-
-  React.useEffect(() => {
-    if (aisles) {
-      if (aisles.length > 0) {
-        // Only reset if current selected aisle is not in the new aisles list
-        const exists = aisles.some((a) => a.id === selectedAisleId);
-        if (!exists) {
-          setSelectedAisleId(aisles[0].id);
-        }
-      } else {
-        setSelectedAisleId(undefined);
-      }
-    }
-  }, [aisles, selectedAisleId]);
 
   // --- Compute Stock Allocations dynamically from Activity Feed ---
   const computedAllocations = React.useMemo(() => {
@@ -208,29 +204,113 @@ export default function WarehouseMapping() {
     return map;
   }, [activities, products]);
 
-  // Find active selections details
+  // --- Global Inventory Search Engine ---
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+
+    const results: {
+      type: "product" | "location";
+      title: string;
+      subtitle: string;
+      shelfId: number;
+      aisleId: number;
+      whId: number;
+      extra?: string;
+    }[] = [];
+
+    // Search shelves & warehouse hierarchy
+    if (shelves && allRacks && aisles && warehouses) {
+      for (const s of shelves) {
+        const r = allRacks.find((rx) => rx.id === s.rack_id);
+        const a = aisles.find((ax) => ax.id === r?.aisle_id);
+        const w = warehouses.find((wx) => wx.id === a?.warehouse_id);
+
+        if (
+          s.name.toLowerCase().includes(q) ||
+          r?.name.toLowerCase().includes(q) ||
+          a?.name.toLowerCase().includes(q) ||
+          w?.name.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "location",
+            title: `Shelf ${s.name}`,
+            subtitle: `${w?.name ?? "WH"} > ${a?.name ?? "Aisle"} > ${r?.name ?? "Rack"}`,
+            shelfId: s.id,
+            aisleId: a?.id ?? 0,
+            whId: w?.id ?? 0,
+          });
+        }
+      }
+    }
+
+    // Search products stored in stock allocations
+    if (products) {
+      for (const prod of products) {
+        if (
+          prod.name.toLowerCase().includes(q) ||
+          prod.sku.toLowerCase().includes(q)
+        ) {
+          // Find which shelves it resides in
+          computedAllocations.forEach((allocs, shelfId) => {
+            const match = allocs.find((a) => a.productId === prod.id);
+            if (match) {
+              const s = shelves?.find((sh) => sh.id === shelfId);
+              const r = allRacks?.find((rx) => rx.id === s?.rack_id);
+              const a = aisles?.find((ax) => ax.id === r?.aisle_id);
+              const w = warehouses?.find((wx) => wx.id === a?.warehouse_id);
+
+              results.push({
+                type: "product",
+                title: prod.name,
+                subtitle: `${prod.sku} — Stored in ${w?.name ?? "WH"} > ${a?.name ?? "Aisle"} > ${s?.name ?? "Shelf"}`,
+                shelfId: shelfId,
+                aisleId: a?.id ?? 0,
+                whId: w?.id ?? 0,
+                extra: `${match.quantity} Units`,
+              });
+            }
+          });
+        }
+      }
+    }
+
+    return results.slice(0, 8);
+  }, [searchQuery, products, shelves, allRacks, aisles, warehouses, computedAllocations]);
+
+  // --- Active selections details ---
   const activeWh = warehouses?.find((w) => w.id === selectedWhId);
-  const activeAisle = aisles?.find((a) => a.id === selectedAisleId);
   const activeShelf = shelves?.find((s) => s.id === selectedShelfId);
   const activeShelfAllocations = selectedShelfId ? computedAllocations.get(selectedShelfId) || [] : [];
+  
+  // Find parent context for active shelf
+  const activeShelfParentInfo = React.useMemo(() => {
+    if (!activeShelf || !allRacks || !aisles || !warehouses) return null;
+    const rack = allRacks.find((r) => r.id === activeShelf.rack_id);
+    const aisle = aisles.find((a) => a.id === rack?.aisle_id);
+    const wh = warehouses.find((w) => w.id === aisle?.warehouse_id);
+    return { rack, aisle, wh };
+  }, [activeShelf, allRacks, aisles, warehouses]);
 
-  // Group shelves by rack_id
-  const shelvesByRack = React.useMemo(() => {
-    const map = new Map<number, Shelf[]>();
-    if (!shelves) return map;
-    for (const s of shelves) {
-      const list = map.get(s.rack_id) || [];
-      list.push(s);
-      map.set(s.rack_id, list);
-    }
-    return map;
-  }, [shelves]);
+  // Max capacity standard (e.g. 100)
+  const MAX_CAPACITY = 100;
+  const activeShelfQty = activeShelfAllocations.reduce((sum, item) => sum + item.quantity, 0);
+  const activeShelfOccupancyPct = Math.min(Math.round((activeShelfQty / MAX_CAPACITY) * 105) / 1.05, 100); // safety cap
 
-  // Find all shelves for simulated scanner dropdown
+  // --- Filtered activities list (filtered contextually for selected shelf) ---
+  const filteredActivities = React.useMemo(() => {
+    if (!activities) return [];
+    if (!selectedShelfId) return activities.slice(0, 10); // Show recent 10 if global
+    return activities
+      .filter((act) => act.source_shelf_id === selectedShelfId || act.target_shelf_id === selectedShelfId)
+      .slice(0, 10);
+  }, [activities, selectedShelfId]);
+
+  // --- All shelves dropdown selector list ---
   const allShelvesList = React.useMemo(() => {
-    if (!shelves || !warehouses || !aisles || !racks) return [];
+    if (!shelves || !warehouses || !aisles || !allRacks) return [];
     return shelves.map((s) => {
-      const r = racks.find((rx) => rx.id === s.rack_id);
+      const r = allRacks.find((rx) => rx.id === s.rack_id);
       const a = aisles.find((ax) => ax.id === r?.aisle_id);
       const w = warehouses.find((wx) => wx.id === a?.warehouse_id);
       return {
@@ -239,18 +319,43 @@ export default function WarehouseMapping() {
         fullName: `${w?.name ?? "Wh"} > ${a?.name ?? "Aisle"} > ${r?.name ?? "Rack"} > ${s.name}`,
       };
     });
-  }, [shelves, warehouses, aisles, racks]);
+  }, [shelves, warehouses, aisles, allRacks]);
 
-  // --- Handlers ---
+  // --- Time Formatter ---
+  const formatTimeAgo = (timestampStr: string) => {
+    const now = new Date();
+    const date = new Date(timestampStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins === 1) return "1 min ago";
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffHours === 1) return "1 hour ago";
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return "Yesterday";
+    return `${diffDays} days ago`;
+  };
+
+  // --- Search selection handler ---
+  const handleSearchResultClick = (result: typeof searchResults[0]) => {
+    setSelectedWhId(result.whId);
+    setSelectedShelfId(result.shelfId);
+    setSearchQuery("");
+    setShowSearchResults(false);
+    // Hide forms
+    setShowAllocateForm(false);
+    setShowTransferForm(false);
+  };
+
+  // --- Action Submissions ---
   const handleWhSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!whName.trim()) return;
     saveWh.mutate(
-      {
-        id: whModal?.data?.id,
-        name: whName,
-        location: whLoc || null,
-      },
+      { id: whModal?.data?.id, name: whName, location: whLoc || null },
       {
         onSuccess: (data) => {
           setSelectedWhId(data.id);
@@ -264,14 +369,9 @@ export default function WarehouseMapping() {
     e.preventDefault();
     if (!aisleName.trim() || !aisleModal) return;
     saveAisle.mutate(
+      { id: aisleModal.data?.id, warehouse_id: aisleModal.warehouse_id, name: aisleName },
       {
-        id: aisleModal.data?.id,
-        warehouse_id: aisleModal.warehouse_id,
-        name: aisleName,
-      },
-      {
-        onSuccess: (data) => {
-          setSelectedAisleId(data.id);
+        onSuccess: () => {
           setAisleModal(null);
         },
       }
@@ -282,11 +382,7 @@ export default function WarehouseMapping() {
     e.preventDefault();
     if (!rackName.trim() || !rackModal) return;
     saveRack.mutate(
-      {
-        id: rackModal.data?.id,
-        aisle_id: rackModal.aisle_id,
-        name: rackName,
-      },
+      { id: rackModal.data?.id, aisle_id: rackModal.aisle_id, name: rackName },
       {
         onSuccess: () => {
           setRackModal(null);
@@ -299,11 +395,7 @@ export default function WarehouseMapping() {
     e.preventDefault();
     if (!shelfName.trim() || !shelfModal) return;
     saveShelf.mutate(
-      {
-        id: shelfModal.data?.id,
-        rack_id: shelfModal.rack_id,
-        name: shelfName,
-      },
+      { id: shelfModal.data?.id, rack_id: shelfModal.rack_id, name: shelfName },
       {
         onSuccess: (data) => {
           setSelectedShelfId(data.id);
@@ -317,14 +409,10 @@ export default function WarehouseMapping() {
     e.preventDefault();
     if (!selectedShelfId || !allocProdId || allocQty <= 0) return;
     allocateStock.mutate(
-      {
-        product_id: allocProdId,
-        shelf_id: selectedShelfId,
-        quantity: allocQty,
-      },
+      { product_id: allocProdId, shelf_id: selectedShelfId, quantity: allocQty },
       {
         onSuccess: () => {
-          setAllocModalOpen(false);
+          setShowAllocateForm(false);
           setAllocProdId(undefined);
           setAllocQty(0);
         },
@@ -344,7 +432,7 @@ export default function WarehouseMapping() {
       },
       {
         onSuccess: () => {
-          setTransferModalOpen(false);
+          setShowTransferForm(false);
           setTransferProdId(undefined);
           setTransferTgtShelfId(undefined);
           setTransferQty(0);
@@ -353,327 +441,457 @@ export default function WarehouseMapping() {
     );
   };
 
+  const copyQRUri = () => {
+    if (!activeShelf) return;
+    navigator.clipboard.writeText(`warehouse://shelf/${activeShelf.id}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Switch to target shelf after simulated lookup scan
+  const handleSimulatedScanSelect = (val: string) => {
+    if (!val) return;
+    const sId = Number(val);
+    setSelectedShelfId(sId);
+    
+    // Auto shift selected warehouse
+    const targetShelf = shelves?.find((s) => s.id === sId);
+    if (targetShelf) {
+      const targetRack = allRacks?.find((r) => r.id === targetShelf.rack_id);
+      const targetAisle = aisles?.find((a) => a.id === targetRack?.aisle_id);
+      if (targetAisle) {
+        setSelectedWhId(targetAisle.warehouse_id);
+      }
+    }
+    setShowAllocateForm(false);
+    setShowTransferForm(false);
+  };
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageHeader
-        title="Warehouse Mapping"
-        description="Manage warehouse layout, visual grids, shelves capacity, QR codes, and stock transactions"
-        action={
-          <div className="flex items-center gap-3">
-            {/* Mock QR Scanner Dropdown */}
-            <div className="flex items-center gap-2 border bg-muted/30 rounded px-2 py-1">
-              <QrCode className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Scan QR (Mock):</span>
-              <Select
-                className="h-7 text-xs bg-background py-0 w-44"
-                value={selectedShelfId?.toString() ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) {
-                    setSelectedShelfId(Number(val));
-                    // Automatically switch selector to parent warehouse and aisle if possible
-                    const targetShelf = shelves?.find((s) => s.id === Number(val));
-                    if (targetShelf) {
-                      const targetRack = racks?.find((r) => r.id === targetShelf.rack_id);
-                      const targetAisle = aisles?.find((a) => a.id === targetRack?.aisle_id);
-                      if (targetAisle) {
-                        setSelectedAisleId(targetAisle.id);
-                        setSelectedWhId(targetAisle.warehouse_id);
-                      }
-                    }
-                  } else {
-                    setSelectedShelfId(undefined);
-                  }
+    <div className="flex flex-col min-h-screen bg-[#fafafa] dark:bg-zinc-950">
+      
+      {/* ========================================== HEADER ========================================== */}
+      <header className="sticky top-0 z-40 flex flex-col md:flex-row items-center justify-between gap-4 px-8 py-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg">
+            <WarehouseIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-55 animate-fade-in">Warehouse Control Center</h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Find, inspect, and route inventories dynamically</p>
+          </div>
+        </div>
+
+        {/* Global Search Bar (Linear-style) */}
+        <div className="relative w-full md:w-96">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+            <Input
+              type="text"
+              placeholder="Search inventory, SKU, shelf, rack..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              className="w-full pl-9 pr-4 h-9 bg-zinc-50 border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800 focus-visible:ring-1 focus-visible:ring-indigo-500 rounded-lg text-sm transition-all shadow-inner placeholder:text-zinc-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setShowSearchResults(false);
                 }}
+                className="absolute right-3 top-2.5 hover:text-zinc-700 text-zinc-400"
               >
-                <option value="">-- Select Shelf --</option>
-                {allShelvesList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.fullName}
-                  </option>
-                ))}
-              </Select>
-            </div>
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown Overlay */}
+          {showSearchResults && searchQuery.trim() && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowSearchResults(false)} />
+              <div className="absolute left-0 right-0 mt-1.5 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 animate-in fade-in slide-in-from-top-1 duration-150">
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                    No matching products or locations found
+                  </div>
+                ) : (
+                  searchResults.map((res, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSearchResultClick(res)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 flex items-center justify-between text-sm transition-colors"
+                    >
+                      <div className="flex-1 min-w-0 pr-3">
+                        <div className="font-semibold text-zinc-800 dark:text-zinc-200 truncate flex items-center gap-1.5">
+                          {res.type === "product" ? (
+                            <Package className="h-3.5 w-3.5 text-indigo-500" />
+                          ) : (
+                            <MapPin className="h-3.5 w-3.5 text-emerald-500" />
+                          )}
+                          {res.title}
+                        </div>
+                        <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate mt-0.5">
+                          {res.subtitle}
+                        </div>
+                      </div>
+                      {res.extra && (
+                        <Badge variant="outline" className="font-mono text-[10px] text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800 shrink-0">
+                          {res.extra}
+                        </Badge>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Global Controls & Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 rounded-lg p-0.5 shadow-sm">
+            <button
+              onClick={() => setEditMode(false)}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                !editMode
+                  ? "bg-white dark:bg-zinc-800 shadow text-zinc-800 dark:text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              }`}
+            >
+              Control Center
+            </button>
+            <button
+              onClick={() => setEditMode(true)}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
+                editMode
+                  ? "bg-white dark:bg-zinc-800 shadow text-indigo-600 dark:text-indigo-400"
+                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              }`}
+            >
+              <Settings className="h-3 w-3" /> Edit Mode
+            </button>
+          </div>
+
+          {editMode && (
             <Button
               size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1"
               onClick={() => {
                 setWhName("");
                 setWhLoc("");
                 setWhModal({ mode: "create" });
               }}
             >
-              <Plus className="h-4 w-4 mr-1" /> New Warehouse
+              <Plus className="h-4 w-4" /> New Warehouse
             </Button>
-          </div>
-        }
-      />
-
-      <div className="flex-1 p-6 space-y-6">
-        {/* Top Selectors Bar */}
-        <div className="flex flex-wrap items-center gap-6 bg-card p-4 border rounded-lg shadow-sm">
-          {/* Warehouse Selector */}
-          <div className="flex items-center gap-2">
-            <WarehouseIcon className="h-4 w-4 text-primary" />
-            <Label className="font-semibold text-sm">Warehouse:</Label>
-            <div className="flex items-center gap-1">
-              <Select
-                className="w-48 h-8"
-                value={selectedWhId?.toString() ?? ""}
-                onChange={(e) => setSelectedWhId(e.target.value ? Number(e.target.value) : undefined)}
-              >
-                {whLoading ? (
-                  <option>Loading...</option>
-                ) : (
-                  warehouses?.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))
-                )}
-              </Select>
-              {activeWh && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setWhName(activeWh.name);
-                      setWhLoc(activeWh.location || "");
-                      setWhModal({ mode: "edit", data: activeWh });
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={() => {
-                      if (confirm(`Delete warehouse "${activeWh.name}" and all of its structure?`)) {
-                        deleteWh.mutate(activeWh.id, {
-                          onSuccess: () => setSelectedWhId(undefined),
-                        });
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Aisle Selector */}
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
-            <Label className="font-semibold text-sm">Aisle:</Label>
-            <div className="flex items-center gap-1">
-              <Select
-                className="w-40 h-8"
-                value={selectedAisleId?.toString() ?? ""}
-                onChange={(e) => setSelectedAisleId(e.target.value ? Number(e.target.value) : undefined)}
-                disabled={!selectedWhId}
-              >
-                {aislesLoading ? (
-                  <option>Loading...</option>
-                ) : (
-                  aisles?.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))
-                )}
-              </Select>
-              {selectedWhId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setAisleName("");
-                    setAisleModal({ mode: "create", warehouse_id: selectedWhId });
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
-              {activeAisle && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setAisleName(activeAisle.name);
-                      setAisleModal({
-                        mode: "edit",
-                        warehouse_id: activeAisle.warehouse_id,
-                        data: activeAisle,
-                      });
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={() => {
-                      if (confirm(`Delete aisle "${activeAisle.name}"?`)) {
-                        deleteAisle.mutate(
-                          { id: activeAisle.id, warehouseId: selectedWhId },
-                          {
-                            onSuccess: () => setSelectedAisleId(undefined),
-                          }
-                        );
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+          )}
         </div>
+      </header>
 
-        {/* Dashboard Grid and Details Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Visual Map (Racks & Shelves) */}
-          <div className="lg:col-span-2 space-y-6 bg-card border rounded-lg p-6 min-h-[450px]">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="font-semibold text-lg">Visual Map Layout</h3>
-                <p className="text-xs text-muted-foreground">
-                  Click a shelf to view details, allocate, or transfer stock.
-                </p>
+      {/* ========================================== MAIN SPLIT LAYOUT ========================================== */}
+      <main className="flex-1 px-8 py-6 grid grid-cols-1 lg:grid-cols-10 gap-8">
+        
+        {/* ==================== LEFT SIDE (70% - MAP & TIMELINE) ==================== */}
+        <section className="lg:col-span-7 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          
+          {/* Warehouse Map Box */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-6">
+            
+            {/* Map Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="h-5 w-5 text-indigo-500" />
+                <h2 className="font-bold text-lg text-zinc-800 dark:text-zinc-100">Interactive Visual Map</h2>
+                {activeWh && (
+                  <Badge variant="outline" className="ml-2 bg-zinc-50 border-zinc-200 dark:bg-zinc-800/40 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300">
+                    {activeWh.name}
+                  </Badge>
+                )}
               </div>
-              {selectedAisleId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setRackName("");
-                    setRackModal({ mode: "create", aisle_id: selectedAisleId });
+
+              {/* Warehouse Selector & Edit Buttons */}
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <select
+                  value={selectedWhId?.toString() ?? ""}
+                  onChange={(e) => {
+                    setSelectedWhId(e.target.value ? Number(e.target.value) : undefined);
+                    setSelectedShelfId(undefined);
                   }}
+                  className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-zinc-50 border border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm"
                 >
-                  <Plus className="h-4 w-4 mr-1" /> Add Rack
-                </Button>
-              )}
+                  {whLoading ? (
+                    <option>Loading...</option>
+                  ) : (
+                    warehouses?.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+
+                {editMode && activeWh && (
+                  <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-950 border dark:border-zinc-800 rounded-lg p-0.5">
+                    <button
+                      onClick={() => {
+                        setWhName(activeWh.name);
+                        setWhLoc(activeWh.location || "");
+                        setWhModal({ mode: "edit", data: activeWh });
+                      }}
+                      className="p-1.5 text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+                      title="Edit Warehouse Details"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete warehouse "${activeWh.name}" and all associated structures?`)) {
+                          deleteWh.mutate(activeWh.id, {
+                            onSuccess: () => setSelectedWhId(undefined),
+                          });
+                        }
+                      }}
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+                      title="Delete Warehouse"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {racksLoading || shelvesLoading ? (
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                Loading visual map...
+            {/* Visual Grid Map */}
+            {whLoading || shelvesLoading || aislesLoading ? (
+              <div className="flex flex-col items-center justify-center h-64 text-zinc-400 dark:text-zinc-500 gap-2">
+                <RefreshCw className="h-6 w-6 animate-spin text-zinc-400" />
+                <span className="text-xs">Loading warehouse visuals...</span>
               </div>
             ) : !selectedWhId ? (
-              <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded text-muted-foreground p-4">
-                <WarehouseIcon className="h-8 w-8 mb-2 text-muted-foreground/60" />
-                Please select or create a warehouse first.
+              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-400 dark:text-zinc-500 p-6">
+                <WarehouseIcon className="h-10 w-10 mb-2 text-zinc-300 dark:text-zinc-700" />
+                <span className="text-sm font-semibold">No warehouse structure exists</span>
+                <span className="text-xs text-center mt-1 max-w-xs">Create a warehouse in Edit Mode to begin map layouts.</span>
               </div>
-            ) : !selectedAisleId ? (
-              <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded text-muted-foreground p-4">
-                <MapPin className="h-8 w-8 mb-2 text-muted-foreground/60" />
-                Please select or create an aisle in this warehouse.
-              </div>
-            ) : racks?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded text-muted-foreground p-4">
-                No racks in this aisle. Click "Add Rack" above to begin.
+            ) : aisles?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-400 dark:text-zinc-500 p-6">
+                <MapPin className="h-10 w-10 mb-2 text-zinc-300 dark:text-zinc-700" />
+                <span className="text-sm font-semibold">This warehouse is empty</span>
+                <span className="text-xs text-center mt-1 max-w-xs">Switch to Edit Mode to create Aisles, Racks, and Shelves.</span>
+                {editMode && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4 border-zinc-300 dark:border-zinc-700"
+                    onClick={() => {
+                      setAisleName("");
+                      setAisleModal({ mode: "create", warehouse_id: selectedWhId });
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add First Aisle
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {racks?.map((rack) => {
-                  const rackShelves = shelvesByRack.get(rack.id) || [];
+              <div className="space-y-8">
+                {aisles?.map((aisle) => {
+                  const aisleRacks = allRacks?.filter((r) => r.aisle_id === aisle.id) || [];
+                  
                   return (
-                    <div key={rack.id} className="border rounded-lg bg-muted/20 p-4 space-y-3">
-                      <div className="flex items-center justify-between border-b pb-2">
-                        <span className="font-medium text-sm text-foreground flex items-center gap-1.5">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                          {rack.name}
+                    <div key={aisle.id} className="space-y-3 p-4 bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-800/80 rounded-xl transition-all">
+                      
+                      {/* Aisle Title & Edit actions */}
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-zinc-400" />
+                          {aisle.name}
                         </span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setShelfName("");
-                              setShelfModal({ mode: "create", rack_id: rack.id });
-                            }}
-                            title="Add Shelf"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setRackName(rack.name);
-                              setRackModal({ mode: "edit", aisle_id: rack.aisle_id, data: rack });
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-destructive"
-                            onClick={() => {
-                              if (confirm(`Delete rack "${rack.name}" and all of its shelves?`)) {
-                                deleteRack.mutate({ id: rack.id, aisleId: selectedAisleId });
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+
+                        {editMode && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs font-semibold px-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-indigo-600"
+                              onClick={() => {
+                                setRackName("");
+                                setRackModal({ mode: "create", aisle_id: aisle.id });
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-0.5" /> Add Rack
+                            </Button>
+                            <button
+                              onClick={() => {
+                                setAisleName(aisle.name);
+                                setAisleModal({ mode: "edit", warehouse_id: aisle.warehouse_id, data: aisle });
+                              }}
+                              className="p-1 text-zinc-400 hover:text-indigo-600 rounded"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete aisle "${aisle.name}" and all racks inside it?`)) {
+                                  deleteAisle.mutate({ id: aisle.id, warehouseId: selectedWhId });
+                                }
+                              }}
+                              className="p-1 text-zinc-400 hover:text-rose-650 rounded"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
-                      {rackShelves.length === 0 ? (
-                        <div className="text-center text-xs text-muted-foreground py-4 border border-dashed rounded">
-                          No shelves
+                      {/* Racks list */}
+                      {aisleRacks.length === 0 ? (
+                        <div className="text-center py-4 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-400 dark:text-zinc-650 bg-white dark:bg-zinc-900/10">
+                          No racks defined.
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                          {rackShelves.map((shelf) => {
-                            const allocs = computedAllocations.get(shelf.id) || [];
-                            const isOccupied = allocs.length > 0;
-                            const totalQty = allocs.reduce((acc, curr) => acc + curr.quantity, 0);
-
+                        <div className="space-y-4">
+                          {aisleRacks.map((rack) => {
+                            const rackShelves = shelves?.filter((s) => s.rack_id === rack.id) || [];
+                            
                             return (
-                              <button
-                                key={shelf.id}
-                                onClick={() => setSelectedShelfId(shelf.id)}
-                                className={`flex flex-col items-start p-3 text-left border rounded-lg transition-all ${
-                                  selectedShelfId === shelf.id
-                                    ? "ring-2 ring-primary border-primary bg-primary/5"
-                                    : isOccupied
-                                    ? "border-green-300 bg-green-50/50 hover:bg-green-50"
-                                    : "border-dashed border-muted-foreground/30 bg-background hover:bg-muted/10"
-                                }`}
-                              >
-                                <span className="font-semibold text-xs">{shelf.name}</span>
-                                <div className="mt-1 flex items-center justify-between w-full">
-                                  <Badge
-                                    variant={isOccupied ? "success" : "muted"}
-                                    className="text-[10px] px-1 py-0"
-                                  >
-                                    {isOccupied ? "Occupied" : "Empty"}
-                                  </Badge>
-                                  {isOccupied && (
-                                    <span className="text-[10px] text-muted-foreground font-mono">
-                                      {totalQty} units
-                                    </span>
+                              <div key={rack.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-lg p-3 space-y-2 shadow-xs">
+                                
+                                {/* Rack info line */}
+                                <div className="flex items-center justify-between pb-1.5 border-b border-zinc-100 dark:border-zinc-800/50">
+                                  <span className="font-semibold text-xs text-zinc-650 dark:text-zinc-400 flex items-center gap-1.5">
+                                    <Package className="h-3.5 w-3.5 text-zinc-400" />
+                                    {rack.name}
+                                  </span>
+
+                                  {editMode && (
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 text-[10px] px-1.5 text-zinc-500 hover:text-indigo-600"
+                                        onClick={() => {
+                                          setShelfName("");
+                                          setShelfModal({ mode: "create", rack_id: rack.id });
+                                        }}
+                                      >
+                                        <Plus className="h-3 w-3 mr-0.5" /> Add Shelf
+                                      </Button>
+                                      <button
+                                        onClick={() => {
+                                          setRackName(rack.name);
+                                          setRackModal({ mode: "edit", aisle_id: rack.aisle_id, data: rack });
+                                        }}
+                                        className="p-0.5 text-zinc-400 hover:text-indigo-600 rounded"
+                                      >
+                                        <Pencil className="h-2.5 w-2.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Delete rack "${rack.name}" and all shelves inside?`)) {
+                                            deleteRack.mutate({ id: rack.id, aisleId: aisle.id });
+                                          }
+                                        }}
+                                        className="p-0.5 text-zinc-400 hover:text-rose-600 rounded"
+                                      >
+                                        <Trash2 className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
-                                {isOccupied && (
-                                  <div className="mt-1.5 text-[10px] text-muted-foreground w-full truncate font-medium">
-                                    {allocs.map((a) => `${a.sku}(${a.quantity})`).join(", ")}
+
+                                {/* Shelves rendering (Grid of location tiles) */}
+                                {rackShelves.length === 0 ? (
+                                  <div className="text-center py-2 text-[10px] text-zinc-400 dark:text-zinc-600">
+                                    No shelves on this rack.
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                    {rackShelves.map((shelf) => {
+                                      const sAllocs = computedAllocations.get(shelf.id) || [];
+                                      const sQty = sAllocs.reduce((sum, item) => sum + item.quantity, 0);
+                                      const sPct = Math.min(Math.round((sQty / MAX_CAPACITY) * 100), 100);
+                                      const isSelected = selectedShelfId === shelf.id;
+
+                                      // Pick color based on capacity
+                                      let tileStyles = "";
+                                      if (sQty === 0) {
+                                        tileStyles = isSelected
+                                          ? "border-indigo-600 ring-2 ring-indigo-500/25 bg-indigo-50/10 text-indigo-800 dark:border-indigo-550 dark:bg-indigo-950/20 dark:text-indigo-300"
+                                          : "border-emerald-250 bg-emerald-50/10 text-emerald-800 hover:bg-emerald-50/40 hover:border-emerald-300 dark:border-emerald-900/30 dark:bg-emerald-950/10 dark:text-emerald-400 dark:hover:bg-emerald-950/20";
+                                      } else if (sPct < 80) {
+                                        tileStyles = isSelected
+                                          ? "border-indigo-600 ring-2 ring-indigo-500/25 bg-indigo-50/10 text-indigo-800 dark:border-indigo-550 dark:bg-indigo-950/20 dark:text-indigo-300"
+                                          : "border-amber-250 bg-amber-50/10 text-amber-800 hover:bg-amber-50/40 hover:border-amber-300 dark:border-amber-900/30 dark:bg-amber-950/10 dark:text-amber-400 dark:hover:bg-amber-950/20";
+                                      } else {
+                                        tileStyles = isSelected
+                                          ? "border-indigo-600 ring-2 ring-indigo-500/25 bg-indigo-50/10 text-indigo-800 dark:border-indigo-550 dark:bg-indigo-950/20 dark:text-indigo-300"
+                                          : "border-rose-250 bg-rose-50/10 text-rose-800 hover:bg-rose-50/40 hover:border-rose-300 dark:border-rose-900/30 dark:bg-rose-950/10 dark:text-rose-400 dark:hover:bg-rose-950/20";
+                                      }
+
+                                      return (
+                                        <div key={shelf.id} className="relative group">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setSelectedShelfId(shelf.id);
+                                              setShowAllocateForm(false);
+                                              setShowTransferForm(false);
+                                            }}
+                                            className={`w-full p-3 flex flex-col items-center justify-center border rounded-lg transition-all text-center ${tileStyles} ${
+                                              isSelected ? "shadow-sm scale-[1.02] border-indigo-600 dark:border-indigo-400 font-bold" : "hover:scale-[1.01]"
+                                            }`}
+                                          >
+                                            <span className="font-semibold text-xs tracking-tight">{shelf.name}</span>
+                                            
+                                            {/* Micro-occupancy indicator */}
+                                            <div className="w-full bg-zinc-200/50 dark:bg-zinc-800/60 rounded-full h-1 mt-1.5 overflow-hidden">
+                                              <div
+                                                className={`h-full rounded-full ${
+                                                  sQty === 0 ? "bg-emerald-500" : sPct < 80 ? "bg-amber-500" : "bg-rose-500"
+                                                }`}
+                                                style={{ width: `${sPct}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono mt-1 font-semibold">
+                                              {sPct}% Full
+                                            </span>
+                                          </button>
+
+                                          {/* Tiny shelf actions in Edit Mode */}
+                                          {editMode && (
+                                            <div className="absolute -top-1.5 -right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white dark:bg-zinc-800 border rounded shadow-xs p-0.5 z-10 animate-in fade-in zoom-in-95 duration-100">
+                                              <button
+                                                onClick={() => {
+                                                  setShelfName(shelf.name);
+                                                  setShelfModal({ mode: "edit", rack_id: shelf.rack_id, data: shelf });
+                                                }}
+                                                className="p-0.5 text-zinc-400 hover:text-indigo-600 rounded"
+                                              >
+                                                <Pencil className="h-2 w-2" />
+                                              </button>
+                                              <button
+                                                onClick={() => {
+                                                  if (confirm(`Delete shelf "${shelf.name}"?`)) {
+                                                    deleteShelf.mutate({ id: shelf.id, rackId: shelf.rack_id });
+                                                  }
+                                                }}
+                                                className="p-0.5 text-zinc-400 hover:text-rose-600 rounded"
+                                              >
+                                                <Trash2 className="h-2 w-2" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -685,226 +903,451 @@ export default function WarehouseMapping() {
             )}
           </div>
 
-          {/* Details Sidebar Panel */}
-          <div className="bg-card border rounded-lg p-6 space-y-6 self-start shadow-sm">
-            <div className="border-b pb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" /> Shelf Details
-              </h3>
-              {activeShelf && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setShelfName(activeShelf.name);
-                      setShelfModal({
-                        mode: "edit",
-                        rack_id: activeShelf.rack_id,
-                        data: activeShelf,
-                      });
-                    }}
+          {/* ==================== Timeline Activity (Priority 3) ==================== */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-indigo-500" />
+                <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-100">Warehouse Movements Timeline</h3>
+              </div>
+              {selectedShelfId ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] bg-zinc-50 border-zinc-200 text-zinc-500 font-semibold px-2 py-0.5 dark:bg-zinc-850 dark:border-zinc-800">
+                    Filtered for Shelf: {activeShelf?.name}
+                  </Badge>
+                  <button
+                    onClick={() => setSelectedShelfId(undefined)}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 font-medium animate-pulse"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={() => {
-                      if (confirm(`Delete shelf "${activeShelf.name}"?`)) {
-                        deleteShelf.mutate(
-                          { id: activeShelf.id, rackId: activeShelf.rack_id },
-                          {
-                            onSuccess: () => setSelectedShelfId(undefined),
-                          }
-                        );
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    Clear Filter
+                  </button>
                 </div>
+              ) : (
+                <Badge variant="outline" className="text-[10px] bg-zinc-50 border-zinc-200 text-zinc-500 font-semibold px-2 dark:bg-zinc-850 dark:border-zinc-800">
+                  Global Feed
+                </Badge>
               )}
             </div>
 
+            <div className="flow-root">
+              <ul className="-mb-8">
+                {filteredActivities.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-zinc-400 dark:text-zinc-500 flex flex-col items-center justify-center gap-2">
+                    <Activity className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+                    <span>No recent movements recorded for this context.</span>
+                  </div>
+                ) : (
+                  filteredActivities.map((act, actIdx) => {
+                    const prodName = products?.find((p) => p.id === act.product_id)?.name ?? `#${act.product_id}`;
+                    const prodSku = products?.find((p) => p.id === act.product_id)?.sku ?? "";
+                    const srcShelf = shelves?.find((s) => s.id === act.source_shelf_id);
+                    const tgtShelf = shelves?.find((s) => s.id === act.target_shelf_id);
+
+                    let icon = <ArrowLeftRight className="h-4 w-4" />;
+                    let iconBg = "bg-blue-55 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400";
+                    let desc = "";
+
+                    if (act.activity_type === "Allocated") {
+                      icon = <ArrowDownToLine className="h-4 w-4" />;
+                      iconBg = "bg-emerald-50 text-emerald-600 dark:bg-emerald-955/20 dark:text-emerald-400";
+                      desc = `Allocated ${act.quantity} units to Shelf ${tgtShelf?.name ?? "Target"}`;
+                    } else if (act.activity_type === "Transferred") {
+                      icon = <ArrowLeftRight className="h-4 w-4" />;
+                      iconBg = "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400";
+                      desc = `Transferred ${act.quantity} units from Shelf ${srcShelf?.name ?? "Source"} to Shelf ${tgtShelf?.name ?? "Target"}`;
+                    } else if (act.activity_type === "Consumed") {
+                      icon = <ArrowUpFromLine className="h-4 w-4" />;
+                      iconBg = "bg-rose-50 text-rose-600 dark:bg-rose-955/20 dark:text-rose-400";
+                      desc = `Consumed ${act.quantity} units from Shelf ${srcShelf?.name ?? "Source"}`;
+                    }
+
+                    return (
+                      <li key={act.id}>
+                        <div className="relative pb-8">
+                          {actIdx !== filteredActivities.length - 1 ? (
+                            <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-zinc-200 dark:bg-zinc-800" aria-hidden="true" />
+                          ) : null}
+                          <div className="relative flex space-x-3">
+                            <div>
+                              <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-4 ring-white dark:ring-zinc-900 ${iconBg}`}>
+                                {icon}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
+                              <div>
+                                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                  {desc}
+                                </p>
+                                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 flex items-center gap-1.5">
+                                  <span className="font-semibold text-zinc-500 dark:text-zinc-400">{prodName}</span>
+                                  {prodSku && <span className="font-mono text-[10px] text-zinc-450 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">SKU: {prodSku}</span>}
+                                </p>
+                              </div>
+                              <div className="text-right text-xs whitespace-nowrap text-zinc-450 dark:text-zinc-500 font-medium">
+                                <time dateTime={act.timestamp}>{formatTimeAgo(act.timestamp)}</time>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== RIGHT SIDE (30% - INSPECTION PANEL) ==================== */}
+        <section className="lg:col-span-3">
+          
+          <div className="sticky top-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6 space-y-6 self-start">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+                <Info className="h-4 w-4 text-indigo-500" /> Location Details
+              </h3>
+              {activeShelf && (
+                <button
+                  onClick={() => {
+                    setSelectedShelfId(undefined);
+                    setShowAllocateForm(false);
+                    setShowTransferForm(false);
+                  }}
+                  className="text-xs text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+
+            {/* Empty State / Warehouse Stats Summary */}
             {!activeShelf ? (
-              <div className="text-center text-muted-foreground py-12 text-sm border border-dashed rounded-lg">
-                Select a shelf in the visual map or use the QR scanner simulator to inspect details.
+              <div className="space-y-6">
+                <div className="text-center text-zinc-400 dark:text-zinc-500 py-8 text-xs border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-950/10 p-4">
+                  <LayoutGrid className="h-8 w-8 mx-auto mb-2 text-zinc-300 dark:text-zinc-700" />
+                  No shelf selected. Click a grid tile on the map to inspect stock or perform movements.
+                </div>
+
+                {/* Warehouse Summary Stats Card */}
+                {activeWh && (
+                  <div className="border border-zinc-150 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/30 dark:bg-zinc-950/5 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-55 flex items-center gap-1.5">
+                      <WarehouseIcon className="h-3.5 w-3.5" />
+                      {activeWh.name} Summary
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-2.5 rounded-lg">
+                        <div className="text-zinc-400 dark:text-zinc-500">Total Aisles</div>
+                        <div className="text-base font-bold text-zinc-850 dark:text-zinc-100 mt-0.5">{aisles?.length ?? 0}</div>
+                      </div>
+                      <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-2.5 rounded-lg">
+                        <div className="text-zinc-400 dark:text-zinc-500">Total Shelves</div>
+                        <div className="text-base font-bold text-zinc-850 dark:text-zinc-100 mt-0.5">
+                          {shelves?.filter((s) => {
+                            const r = allRacks?.find((rx) => rx.id === s.rack_id);
+                            const a = aisles?.find((ax) => ax.id === r?.aisle_id);
+                            return a?.warehouse_id === activeWh.id;
+                          }).length ?? 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Scanner Simulation lookup trigger */}
+                    <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+                      <Label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-1">
+                        <QrCode className="h-3 w-3" /> QR Scanner Simulator
+                      </Label>
+                      <select
+                        onChange={(e) => handleSimulatedScanSelect(e.target.value)}
+                        className="w-full text-xs h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2 py-0 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        defaultValue=""
+                      >
+                        <option value="">-- Choose QR barcode to scan --</option>
+                        {allShelvesList.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* Location Path Info */}
-                <div className="space-y-1 text-xs">
-                  <div className="text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">
-                    Full Location Path
+              <div className="space-y-6 animate-in fade-in duration-200">
+                
+                {/* Location Breadcrumbs */}
+                <div className="space-y-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg p-3">
+                  <div className="text-[9px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Active Storage Path
                   </div>
-                  <div className="font-medium text-foreground">
-                    {activeWh?.name} &rarr; {activeAisle?.name} &rarr;{" "}
-                    {racks?.find((r) => r.id === activeShelf.rack_id)?.name} &rarr; {activeShelf.name}
+                  <div className="text-xs text-zinc-700 dark:text-zinc-200 font-semibold flex items-center flex-wrap gap-1">
+                    <span>{activeWh?.name}</span>
+                    <ChevronRight className="h-3 w-3 text-zinc-400" />
+                    <span>{activeShelfParentInfo?.aisle?.name}</span>
+                    <ChevronRight className="h-3 w-3 text-zinc-400" />
+                    <span>{activeShelfParentInfo?.rack?.name}</span>
+                    <ChevronRight className="h-3 w-3 text-zinc-400" />
+                    <span className="text-indigo-650 dark:text-indigo-400 font-bold">{activeShelf.name}</span>
                   </div>
                 </div>
 
-                {/* QR Code Segment */}
-                <div className="flex flex-col items-center border-t border-b py-4">
-                  <QRPlaceholder value={`warehouse://shelf/${activeShelf.id}`} />
-                  <span className="text-[10px] text-muted-foreground mt-1.5 font-mono">
-                    URI ID: {activeShelf.id}
-                  </span>
-                </div>
-
-                {/* Allocations & Stock */}
+                {/* Capacity Occupancy Bar */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">
-                      Stock Allocations
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Capacity Occupancy
                     </span>
-                    <Badge variant="muted">Capacity: 100 max</Badge>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {activeShelfOccupancyPct}% Used
+                    </span>
                   </div>
+                  <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden shadow-inner">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        activeShelfQty === 0
+                          ? "bg-emerald-500"
+                          : activeShelfOccupancyPct < 80
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                      }`}
+                      style={{ width: `${activeShelfOccupancyPct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                    <span>{activeShelfQty} Units</span>
+                    <span>{MAX_CAPACITY} Max Units</span>
+                  </div>
+                </div>
+
+                {/* Stored products list */}
+                <div className="space-y-2">
+                  <h4 className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Stored Products
+                  </h4>
 
                   {activeShelfAllocations.length === 0 ? (
-                    <div className="text-center text-xs text-muted-foreground py-6 border border-dashed rounded bg-muted/10">
+                    <div className="text-center py-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-450 dark:text-zinc-500 text-xs bg-zinc-50/30">
                       No stock allocated to this shelf.
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded divide-y bg-background">
+                    <div className="space-y-2 max-h-48 overflow-y-auto border border-zinc-100 dark:border-zinc-800/80 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-800/60 bg-zinc-50/10 dark:bg-zinc-950/20">
                       {activeShelfAllocations.map((alloc) => (
-                        <div key={alloc.productId} className="flex justify-between items-center p-2 text-xs">
-                          <div>
-                            <div className="font-semibold text-foreground">{alloc.productName}</div>
-                            <div className="text-[10px] text-muted-foreground font-mono">{alloc.sku}</div>
+                        <div key={alloc.productId} className="flex justify-between items-center p-3 text-xs">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="font-bold text-zinc-850 dark:text-zinc-200 truncate">{alloc.productName}</div>
+                            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono mt-0.5">{alloc.sku}</div>
                           </div>
-                          <div className="font-bold text-foreground bg-muted/40 px-2 py-0.5 rounded">
-                            {alloc.quantity} units
-                          </div>
+                          <Badge variant="secondary" className="font-bold bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 rounded px-2.5 py-0.5">
+                            {alloc.quantity} Units
+                          </Badge>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setAllocProdId(undefined);
-                      setAllocQty(0);
-                      setAllocModalOpen(true);
-                    }}
-                  >
-                    Allocate Stock
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    disabled={activeShelfAllocations.length === 0}
-                    onClick={() => {
-                      setTransferProdId(activeShelfAllocations[0]?.productId);
-                      setTransferTgtShelfId(undefined);
-                      setTransferQty(0);
-                      setTransferModalOpen(true);
-                    }}
-                  >
-                    Transfer Stock
-                  </Button>
+                {/* Visual QR Code segment */}
+                <div className="border-t border-b border-zinc-100 dark:border-zinc-800 py-4 flex flex-col sm:flex-row items-center gap-4">
+                  <QRPlaceholder value={`warehouse://shelf/${activeShelf.id}`} />
+                  <div className="space-y-2 text-center sm:text-left flex-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Location QR Code</span>
+                    <span className="text-[11px] font-mono text-zinc-550 break-all block max-w-[150px]">ID: {activeShelf.id}</span>
+                    <div className="flex gap-2 justify-center sm:justify-start">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-[10px] flex items-center gap-1 border-zinc-200"
+                        onClick={copyQRUri}
+                      >
+                        {copied ? <Check className="h-3 w-3 text-emerald-650" /> : <QrCode className="h-3 w-3 text-zinc-500" />}
+                        {copied ? "Copied" : "Copy URI"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operations Actions (INLINE IN THE DETAILS PANEL) */}
+                <div className="space-y-3 pt-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      size="sm"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm text-xs font-semibold h-8"
+                      onClick={() => {
+                        setShowAllocateForm(!showAllocateForm);
+                        setShowTransferForm(false);
+                      }}
+                    >
+                      {showAllocateForm ? "Hide Allocate" : "Allocate Stock"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-xs font-semibold h-8 border-zinc-200 dark:border-zinc-800"
+                      disabled={activeShelfAllocations.length === 0}
+                      onClick={() => {
+                        setShowTransferForm(!showTransferForm);
+                        setShowAllocateForm(false);
+                        setTransferProdId(activeShelfAllocations[0]?.productId);
+                        setTransferTgtShelfId(undefined);
+                        setTransferQty(0);
+                      }}
+                    >
+                      {showTransferForm ? "Hide Transfer" : "Transfer Stock"}
+                    </Button>
+                  </div>
+
+                  {/* Inline Allocate Form */}
+                  {showAllocateForm && (
+                    <form onSubmit={handleAllocateSubmit} className="border border-zinc-150 dark:border-zinc-800 rounded-lg p-3 bg-zinc-50 dark:bg-zinc-955/40 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                      <div className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Allocate Inventory</div>
+                      <div className="space-y-2.5">
+                        <div className="space-y-1">
+                          <Label htmlFor="allocProd" className="text-[10px] text-zinc-450">Product</Label>
+                          <select
+                            id="allocProd"
+                            className="w-full h-8 text-xs border border-zinc-200 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-900 px-2 py-0 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={allocProdId?.toString() ?? ""}
+                            onChange={(e) => setAllocProdId(e.target.value ? Number(e.target.value) : undefined)}
+                            required
+                          >
+                            <option value="">-- Select Product --</option>
+                            {products?.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.sku})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="allocQty" className="text-[10px] text-zinc-455">Quantity</Label>
+                          <Input
+                            id="allocQty"
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                            value={allocQty || ""}
+                            onChange={(e) => setAllocQty(Number(e.target.value))}
+                            placeholder="e.g. 15"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          type="button"
+                          className="h-7 px-2.5 text-[10px]"
+                          onClick={() => setShowAllocateForm(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="submit"
+                          className="h-7 px-2.5 text-[10px] bg-indigo-650 text-white"
+                          disabled={allocateStock.isPending}
+                        >
+                          {allocateStock.isPending ? "Allocating..." : "Allocate"}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Inline Transfer Form */}
+                  {showTransferForm && (
+                    <form onSubmit={handleTransferSubmit} className="border border-zinc-150 dark:border-zinc-800 rounded-lg p-3 bg-zinc-50 dark:bg-zinc-955/40 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                      <div className="text-xs font-bold text-zinc-705 dark:text-zinc-300">Transfer Inventory</div>
+                      <div className="space-y-2.5">
+                        <div className="space-y-1">
+                          <Label htmlFor="transferProd" className="text-[10px] text-zinc-450">Product to Transfer</Label>
+                          <select
+                            id="transferProd"
+                            className="w-full h-8 text-xs border border-zinc-200 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-900 px-2 py-0 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={transferProdId?.toString() ?? ""}
+                            onChange={(e) => {
+                              setTransferProdId(e.target.value ? Number(e.target.value) : undefined);
+                              setTransferQty(0);
+                            }}
+                            required
+                          >
+                            <option value="">-- Select Product --</option>
+                            {activeShelfAllocations.map((a) => (
+                              <option key={a.productId} value={a.productId}>
+                                {a.productName} ({a.sku}) - Avail: {a.quantity}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="transferTgt" className="text-[10px] text-zinc-450">Target Shelf</Label>
+                          <select
+                            id="transferTgt"
+                            className="w-full h-8 text-xs border border-zinc-200 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-900 px-2 py-0 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={transferTgtShelfId?.toString() ?? ""}
+                            onChange={(e) => setTransferTgtShelfId(e.target.value ? Number(e.target.value) : undefined)}
+                            required
+                          >
+                            <option value="">-- Select Target Shelf --</option>
+                            {allShelvesList
+                              .filter((s) => s.id !== selectedShelfId)
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.fullName}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="transferQty" className="text-[10px] text-zinc-450">Quantity to Transfer</Label>
+                          <Input
+                            id="transferQty"
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            max={activeShelfAllocations.find((a) => a.productId === transferProdId)?.quantity ?? undefined}
+                            className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                            value={transferQty || ""}
+                            onChange={(e) => setTransferQty(Number(e.target.value))}
+                            placeholder="e.g. 10"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          type="button"
+                          className="h-7 px-2.5 text-[10px]"
+                          onClick={() => setShowTransferForm(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="submit"
+                          className="h-7 px-2.5 text-[10px] bg-indigo-650 text-white"
+                          disabled={transferStock.isPending}
+                        >
+                          {transferStock.isPending ? "Transferring..." : "Transfer"}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </section>
+      </main>
 
-        {/* Warehouse Activity Feed */}
-        <div className="bg-card border rounded-lg p-6 space-y-4 shadow-sm">
-          <div className="flex items-center gap-2 border-b pb-3">
-            <Activity className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-lg">Recent Movements &amp; Activity</h3>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10"></TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead>Source Shelf</TableHead>
-                  <TableHead>Target Shelf</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!activities || activities.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                      No recent movement activity logged.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  activities.map((act) => {
-                    const prodName = products?.find((p) => p.id === act.product_id)?.name ?? `#${act.product_id}`;
-                    const prodSku = products?.find((p) => p.id === act.product_id)?.sku ?? "";
-
-                    const sourceShelfName = shelves?.find((s) => s.id === act.source_shelf_id)?.name ?? `ID ${act.source_shelf_id}`;
-                    const targetShelfName = shelves?.find((s) => s.id === act.target_shelf_id)?.name ?? `ID ${act.target_shelf_id}`;
-
-                    return (
-                      <TableRow key={act.id}>
-                        <TableCell>
-                          {act.activity_type === "Allocated" ? (
-                            <ArrowDownToLine className="h-4 w-4 text-green-600" />
-                          ) : act.activity_type === "Transferred" ? (
-                            <ArrowLeftRight className="h-4 w-4 text-primary" />
-                          ) : (
-                            <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              act.activity_type === "Allocated"
-                                ? "success"
-                                : act.activity_type === "Transferred"
-                                ? "info"
-                                : "destructive"
-                            }
-                          >
-                            {act.activity_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-xs">{prodName}</div>
-                            {prodSku && <div className="text-[10px] text-muted-foreground font-mono">{prodSku}</div>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold text-xs">
-                          {act.quantity}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono">
-                          {act.source_shelf_id ? sourceShelfName : "-"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-mono">
-                          {act.target_shelf_id ? targetShelfName : "-"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(act.timestamp).toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
-
-      {/* --- CRUD Modals --- */}
+      {/* ========================================== CRUD DIALOGS ========================================== */}
 
       {/* Warehouse Modal */}
       {whModal && (
@@ -1055,139 +1498,6 @@ export default function WarehouseMapping() {
         </Dialog>
       )}
 
-      {/* Allocate Stock Modal */}
-      {allocModalOpen && (
-        <Dialog open onClose={() => setAllocModalOpen(false)}>
-          <form onSubmit={handleAllocateSubmit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Allocate Stock to Shelf {activeShelf?.name}</DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="allocProd">Product</Label>
-                <Select
-                  id="allocProd"
-                  className="w-full h-9"
-                  value={allocProdId?.toString() ?? ""}
-                  onChange={(e) => setAllocProdId(e.target.value ? Number(e.target.value) : undefined)}
-                  required
-                >
-                  <option value="">-- Select Product --</option>
-                  {products?.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.sku})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="allocQty">Quantity</Label>
-                <Input
-                  id="allocQty"
-                  type="number"
-                  min="0.01"
-                  step="any"
-                  value={allocQty || ""}
-                  onChange={(e) => setAllocQty(Number(e.target.value))}
-                  placeholder="e.g. 15"
-                  required
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setAllocModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={allocateStock.isPending}>
-                {allocateStock.isPending ? "Allocating..." : "Allocate"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Dialog>
-      )}
-
-      {/* Transfer Stock Modal */}
-      {transferModalOpen && (
-        <Dialog open onClose={() => setTransferModalOpen(false)}>
-          <form onSubmit={handleTransferSubmit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Transfer Stock from Shelf {activeShelf?.name}</DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="transferProd">Product to Transfer</Label>
-                <Select
-                  id="transferProd"
-                  className="w-full h-9"
-                  value={transferProdId?.toString() ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : undefined;
-                    setTransferProdId(val);
-                    // Reset quantity
-                    setTransferQty(0);
-                  }}
-                  required
-                >
-                  <option value="">-- Select Product --</option>
-                  {activeShelfAllocations.map((a) => (
-                    <option key={a.productId} value={a.productId}>
-                      {a.productName} ({a.sku}) - Available: {a.quantity}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="transferTgt">Target Shelf</Label>
-                <Select
-                  id="transferTgt"
-                  className="w-full h-9"
-                  value={transferTgtShelfId?.toString() ?? ""}
-                  onChange={(e) => setTransferTgtShelfId(e.target.value ? Number(e.target.value) : undefined)}
-                  required
-                >
-                  <option value="">-- Select Target Shelf --</option>
-                  {allShelvesList
-                    .filter((s) => s.id !== selectedShelfId)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName}
-                      </option>
-                    ))}
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="transferQty">Quantity to Transfer</Label>
-                <Input
-                  id="transferQty"
-                  type="number"
-                  min="0.01"
-                  step="any"
-                  max={activeShelfAllocations.find((a) => a.productId === transferProdId)?.quantity ?? undefined}
-                  value={transferQty || ""}
-                  onChange={(e) => setTransferQty(Number(e.target.value))}
-                  placeholder="e.g. 10"
-                  required
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setTransferModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={transferStock.isPending}>
-                {transferStock.isPending ? "Transferring..." : "Transfer"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Dialog>
-      )}
     </div>
   );
 }
