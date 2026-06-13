@@ -28,7 +28,6 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen bg-muted/30">
-      {/* Sidebar */}
       <aside className="flex w-60 flex-col border-r bg-background">
         <div className="flex h-16 items-center border-b px-6">
           <div>
@@ -57,7 +56,7 @@ export function AppShell() {
         </nav>
         <div className="border-t p-3">
           <div className="mb-2 px-3">
-            <div className="text-sm font-medium">{user?.name}</div>
+            <div className="text-sm font-medium">{user?.username}</div>
             <div className="text-xs capitalize text-muted-foreground">{user?.role}</div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={logout}>
@@ -66,8 +65,6 @@ export function AppShell() {
           </Button>
         </div>
       </aside>
-
-      {/* Main content */}
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
@@ -75,7 +72,6 @@ export function AppShell() {
   );
 }
 
-/** Standard page wrapper: title bar + action slot + content. */
 export function PageHeader({
   title,
   description,

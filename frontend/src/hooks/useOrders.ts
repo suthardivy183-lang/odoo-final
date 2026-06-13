@@ -13,13 +13,13 @@ import type {
 export function useSalesOrders() {
   return useQuery({
     queryKey: ["sales"],
-    queryFn: async () => (await api.get<SalesOrder[]>("/sales")).data,
+    queryFn: async () => (await api.get<SalesOrder[]>("/sales-orders")).data,
   });
 }
 export function useSalesOrder(id?: number) {
   return useQuery({
     queryKey: ["sales", id],
-    queryFn: async () => (await api.get<SalesOrder>(`/sales/${id}`)).data,
+    queryFn: async () => (await api.get<SalesOrder>(`/sales-orders/${id}`)).data,
     enabled: !!id,
   });
 }
@@ -30,14 +30,15 @@ export function useSalesActions() {
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["purchase"] });
     qc.invalidateQueries({ queryKey: ["manufacturing"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
   return {
-    create: useMutation({ mutationFn: async (b: any) => (await api.post("/sales", b)).data, onSuccess: inval }),
-    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.patch(`/sales/${id}`, b)).data, onSuccess: inval }),
-    confirm: useMutation({ mutationFn: async (id: number) => (await api.post(`/sales/${id}/confirm`)).data, onSuccess: inval }),
-    deliver: useMutation({ mutationFn: async ({ id, lines }: any) => (await api.post(`/sales/${id}/deliver`, { lines })).data, onSuccess: inval }),
-    cancel: useMutation({ mutationFn: async (id: number) => (await api.post(`/sales/${id}/cancel`)).data, onSuccess: inval }),
-    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/sales/${id}`), onSuccess: inval }),
+    create: useMutation({ mutationFn: async (b: any) => (await api.post("/sales-orders", b)).data, onSuccess: inval }),
+    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.put(`/sales-orders/${id}`, b)).data, onSuccess: inval }),
+    confirm: useMutation({ mutationFn: async (id: number) => (await api.post(`/sales-orders/${id}/confirm`)).data, onSuccess: inval }),
+    deliver: useMutation({ mutationFn: async (id: number) => (await api.post(`/sales-orders/${id}/deliver`)).data, onSuccess: inval }),
+    cancel: useMutation({ mutationFn: async (id: number) => (await api.post(`/sales-orders/${id}/cancel`)).data, onSuccess: inval }),
+    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/sales-orders/${id}`), onSuccess: inval }),
   };
 }
 
@@ -45,7 +46,7 @@ export function useSalesActions() {
 export function usePurchaseOrders() {
   return useQuery({
     queryKey: ["purchase"],
-    queryFn: async () => (await api.get<PurchaseOrder[]>("/purchase")).data,
+    queryFn: async () => (await api.get<PurchaseOrder[]>("/purchase-orders")).data,
   });
 }
 export function usePurchaseActions() {
@@ -53,14 +54,16 @@ export function usePurchaseActions() {
   const inval = () => {
     qc.invalidateQueries({ queryKey: ["purchase"] });
     qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
   return {
-    create: useMutation({ mutationFn: async (b: any) => (await api.post("/purchase", b)).data, onSuccess: inval }),
-    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.patch(`/purchase/${id}`, b)).data, onSuccess: inval }),
-    confirm: useMutation({ mutationFn: async (id: number) => (await api.post(`/purchase/${id}/confirm`)).data, onSuccess: inval }),
-    receive: useMutation({ mutationFn: async ({ id, lines }: any) => (await api.post(`/purchase/${id}/receive`, { lines })).data, onSuccess: inval }),
-    cancel: useMutation({ mutationFn: async (id: number) => (await api.post(`/purchase/${id}/cancel`)).data, onSuccess: inval }),
-    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/purchase/${id}`), onSuccess: inval }),
+    create: useMutation({ mutationFn: async (b: any) => (await api.post("/purchase-orders", b)).data, onSuccess: inval }),
+    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.put(`/purchase-orders/${id}`, b)).data, onSuccess: inval }),
+    confirm: useMutation({ mutationFn: async (id: number) => (await api.post(`/purchase-orders/${id}/confirm`)).data, onSuccess: inval }),
+    // items: [{product_id, received_qty}]
+    receive: useMutation({ mutationFn: async ({ id, items }: { id: number; items: { product_id: number; received_qty: number }[] }) => (await api.post(`/purchase-orders/${id}/receive`, { items })).data, onSuccess: inval }),
+    cancel: useMutation({ mutationFn: async (id: number) => (await api.post(`/purchase-orders/${id}/cancel`)).data, onSuccess: inval }),
+    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/purchase-orders/${id}`), onSuccess: inval }),
   };
 }
 
@@ -76,12 +79,13 @@ export function useManufacturingActions() {
   const inval = () => {
     qc.invalidateQueries({ queryKey: ["manufacturing"] });
     qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
   return {
     create: useMutation({ mutationFn: async (b: any) => (await api.post("/manufacturing", b)).data, onSuccess: inval }),
-    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.patch(`/manufacturing/${id}`, b)).data, onSuccess: inval }),
     confirm: useMutation({ mutationFn: async (id: number) => (await api.post(`/manufacturing/${id}/confirm`)).data, onSuccess: inval }),
-    produce: useMutation({ mutationFn: async ({ id, qty }: any) => (await api.post(`/manufacturing/${id}/produce`, { qty })).data, onSuccess: inval }),
+    start: useMutation({ mutationFn: async (id: number) => (await api.post(`/manufacturing/${id}/start`)).data, onSuccess: inval }),
+    produce: useMutation({ mutationFn: async (id: number) => (await api.post(`/manufacturing/${id}/produce`)).data, onSuccess: inval }),
     cancel: useMutation({ mutationFn: async (id: number) => (await api.post(`/manufacturing/${id}/cancel`)).data, onSuccess: inval }),
     remove: useMutation({ mutationFn: async (id: number) => api.delete(`/manufacturing/${id}`), onSuccess: inval }),
   };
@@ -91,21 +95,21 @@ export function useManufacturingActions() {
 export function useBoms() {
   return useQuery({
     queryKey: ["bom"],
-    queryFn: async () => (await api.get<BillOfMaterials[]>("/bom")).data,
+    queryFn: async () => (await api.get<BillOfMaterials[]>("/boms")).data,
   });
 }
 export function useBomActions() {
   const qc = useQueryClient();
   const inval = () => qc.invalidateQueries({ queryKey: ["bom"] });
   return {
-    create: useMutation({ mutationFn: async (b: any) => (await api.post("/bom", b)).data, onSuccess: inval }),
-    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.patch(`/bom/${id}`, b)).data, onSuccess: inval }),
-    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/bom/${id}`), onSuccess: inval }),
+    create: useMutation({ mutationFn: async (b: any) => (await api.post("/boms", b)).data, onSuccess: inval }),
+    update: useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.put(`/boms/${id}`, b)).data, onSuccess: inval }),
+    remove: useMutation({ mutationFn: async (id: number) => api.delete(`/boms/${id}`), onSuccess: inval }),
   };
 }
 
 /* ── Audit + Dashboard ─────────────────────────────────────────────────── */
-export function useAuditLogs(filters: { module?: string; action?: string } = {}) {
+export function useAuditLogs(filters: { table_name?: string; action?: string } = {}) {
   return useQuery({
     queryKey: ["audit-logs", filters],
     queryFn: async () => (await api.get<AuditLog[]>("/audit-logs", { params: filters })).data,

@@ -1,149 +1,147 @@
-/**
- * Frontend-side mirror of the backend API contract (Track A).
- * Once the backend is running, `npm run generate-api` will emit
- * src/api/schema.d.ts from /openapi.json — prefer those generated
- * types over these hand-written ones where they overlap.
- */
-
-export type Role = "admin" | "user";
+export type Role = "admin" | "sales" | "purchase" | "inventory" | "production";
 
 export interface User {
   id: number;
-  name: string;
-  email: string;
+  username: string;
   role: Role;
-  is_active: boolean;
-  created_at: string;
 }
-
-export type ProductType = "storable" | "consumable" | "service";
-export type ProcureMethod = "buy" | "manufacture";
 
 export interface Product {
   id: number;
-  internal_ref: string | null;
+  sku: string;
   name: string;
-  product_type: ProductType;
-  uom: string;
-  sales_price: string;
-  cost: string;
-  on_hand_qty: string;
-  reserved_qty: string;
-  free_to_use_qty: string;
-  vendor_id: number | null;
+  description: string | null;
+  category: string;
+  sales_price: number;
+  cost_price: number;
+  on_hand_qty: number;
+  reserved_qty: number;
+  free_to_use_qty: number;
+  min_stock_level: number;
+  is_bom_item: boolean;
   procure_on_demand: boolean;
-  procure_method: ProcureMethod | null;
-  min_order_qty: string;
-  notes: string | null;
+  procurement_type: string | null;
+  vendor_id: string | null;
+  bom_id: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface Vendor {
-  id: number;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-}
-
-export type SOStatus =
-  | "draft"
-  | "confirmed"
-  | "partially_delivered"
-  | "fully_delivered"
-  | "cancelled";
+export type SOStatus = "Draft" | "Confirmed" | "Partially Delivered" | "Fully Delivered" | "Cancelled";
 
 export interface SalesOrderLine {
   id: number;
+  sales_order_id: number;
   product_id: number;
-  ordered_qty: string;
-  delivered_qty: string;
-  unit_price: string;
+  quantity: number;
+  delivered_qty: number;
+  unit_price: number;
+  total_price: number;
+  product?: Product;
 }
 
 export interface SalesOrder {
   id: number;
-  name: string;
   customer_name: string;
-  customer_email: string | null;
   status: SOStatus;
   order_date: string;
-  expected_delivery: string | null;
-  notes: string | null;
+  total_amount: number;
   lines: SalesOrderLine[];
 }
 
-export type POStatus =
-  | "draft"
-  | "confirmed"
-  | "partially_received"
-  | "fully_received"
-  | "cancelled";
+export type POStatus = "Draft" | "Confirmed" | "Partially Received" | "Fully Received" | "Cancelled";
 
 export interface PurchaseOrderLine {
   id: number;
+  purchase_order_id: number;
   product_id: number;
-  ordered_qty: string;
-  received_qty: string;
-  unit_price: string;
+  quantity: number;
+  received_qty: number;
+  unit_price: number;
+  total_price: number;
+  product?: Product;
 }
 
 export interface PurchaseOrder {
   id: number;
-  name: string;
-  vendor_id: number | null;
+  vendor_name: string;
   status: POStatus;
   order_date: string;
-  expected_receipt: string | null;
-  notes: string | null;
+  total_amount: number;
   lines: PurchaseOrderLine[];
 }
 
-export interface BOMComponent {
+export interface BoMComponent {
   id: number;
-  product_id: number;
-  qty: string;
+  bom_id: number;
+  component_product_id: number;
+  quantity: number;
+  component_product?: Product;
+}
+
+export interface BoMOperation {
+  id: number;
+  bom_id: number;
+  sequence: number;
+  operation_name: string;
+  work_center: string;
+  standard_time_minutes: number;
 }
 
 export interface BillOfMaterials {
   id: number;
-  name: string;
   product_id: number;
-  qty_produced: string;
-  notes: string | null;
-  components: BOMComponent[];
+  name: string;
+  description: string | null;
+  components: BoMComponent[];
+  operations: BoMOperation[];
 }
 
-export type MOStatus = "draft" | "confirmed" | "in_progress" | "done" | "cancelled";
+export type MOStatus = "Draft" | "Planned" | "In Progress" | "Completed" | "Cancelled";
+
+export interface ManufacturingOrderComponent {
+  id: number;
+  component_product_id: number;
+  required_quantity: number;
+  consumed_quantity: number;
+  status: string;
+  component_product?: Product;
+}
 
 export interface ManufacturingOrder {
   id: number;
-  name: string;
   product_id: number;
-  bom_id: number | null;
-  qty_to_produce: string;
-  qty_produced: string;
+  bom_id: number;
+  quantity: number;
   status: MOStatus;
-  scheduled_date: string | null;
-  notes: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  components: ManufacturingOrderComponent[];
+  operations: BoMOperation[];
+  product?: Product;
 }
-
-export type AuditAction = "create" | "update" | "delete";
 
 export interface AuditLog {
   id: number;
   timestamp: string;
   user_id: number | null;
-  module: string;
-  record_type: string;
+  username: string | null;
+  action: string;
+  table_name: string;
   record_id: number | null;
-  action: AuditAction;
-  field_changed: string | null;
-  old_value: string | null;
-  new_value: string | null;
+  old_values: string | null;
+  new_values: string | null;
 }
 
 export interface DashboardStats {
-  sales: Record<string, number>;
-  purchase: Record<string, number>;
-  manufacturing: Record<string, number>;
+  products: {
+    total: number;
+    finished_goods: number;
+    raw_materials: number;
+    low_stock_alerts: number;
+    total_valuation: number;
+  };
+  sales_orders: { draft: number; confirmed: number; completed: number; total: number };
+  purchase_orders: { draft: number; ordered: number; received: number; total: number };
+  manufacturing_orders: { draft: number; planned: number; in_progress: number; completed: number; total: number };
 }

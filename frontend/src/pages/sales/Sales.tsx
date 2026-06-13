@@ -12,7 +12,7 @@ import { SalesDetail } from "./SalesDetail";
 export default function Sales() {
   const { data: orders, isLoading } = useSalesOrders();
   const [creating, setCreating] = React.useState(false);
-  const [viewing, setViewing] = React.useState<SalesOrder | null>(null);
+  const [viewingId, setViewingId] = React.useState<number | null>(null);
 
   return (
     <div>
@@ -26,7 +26,7 @@ export default function Sales() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
+                <TableHead>Order #</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Lines</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -36,29 +36,26 @@ export default function Sales() {
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
-              {orders?.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No sales orders</TableCell></TableRow>}
-              {orders?.map((so) => {
-                const total = so.lines.reduce((s, l) => s + Number(l.ordered_qty) * Number(l.unit_price), 0);
-                return (
-                  <TableRow key={so.id}>
-                    <TableCell className="font-medium">{so.name}</TableCell>
-                    <TableCell>{so.customer_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{so.lines.length}</TableCell>
-                    <TableCell className="text-right">₹{total.toFixed(2)}</TableCell>
-                    <TableCell><StatusBadge status={so.status} /></TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setViewing(so)}><Eye className="h-4 w-4" /></Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {!isLoading && orders?.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No sales orders</TableCell></TableRow>}
+              {orders?.map((so: SalesOrder) => (
+                <TableRow key={so.id}>
+                  <TableCell className="font-medium">SO-{String(so.id).padStart(4, "0")}</TableCell>
+                  <TableCell>{so.customer_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{so.lines.length}</TableCell>
+                  <TableCell className="text-right">₹{so.total_amount.toFixed(2)}</TableCell>
+                  <TableCell><StatusBadge status={so.status} /></TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => setViewingId(so.id)}><Eye className="h-4 w-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
       </div>
 
       {creating && <SalesForm onClose={() => setCreating(false)} />}
-      {viewing && <SalesDetail soId={viewing.id} onClose={() => setViewing(null)} />}
+      {viewingId && <SalesDetail soId={viewingId} onClose={() => setViewingId(null)} />}
     </div>
   );
 }

@@ -18,31 +18,31 @@ export function PurchaseDetail({ poId, onClose }: { poId: number; onClose: () =>
   const productName = (id: number) => products?.find((p) => p.id === id)?.name ?? `#${id}`;
 
   if (!po) return null;
-  const canReceive = po.status === "confirmed" || po.status === "partially_received";
+  const canReceive = po.status === "Confirmed" || po.status === "Partially Received";
 
   const doReceive = async () => {
     setError("");
-    const lines = po.lines
-      .map((l) => ({ line_id: l.id, receive_qty: recvQty[l.id] }))
-      .filter((l) => l.receive_qty && Number(l.receive_qty) > 0);
-    if (lines.length === 0) { setError("Enter a quantity to receive"); return; }
+    const items = po.lines
+      .filter((l) => recvQty[l.id] && Number(recvQty[l.id]) > 0)
+      .map((l) => ({ product_id: l.product_id, received_qty: Number(recvQty[l.id]) }));
+    if (items.length === 0) { setError("Enter a quantity to receive"); return; }
     try {
-      await receive.mutateAsync({ id: po.id, lines });
+      await receive.mutateAsync({ id: po.id, items });
       setRecvQty({});
     } catch (err: any) {
       setError(err.response?.data?.detail ?? "Receive failed");
     }
   };
 
-  const total = po.lines.reduce((s, l) => s + Number(l.ordered_qty) * Number(l.unit_price), 0);
-
   return (
     <Dialog open onClose={onClose} className="max-w-3xl">
       <DialogHeader>
-        <DialogTitle><span className="flex items-center gap-3">{po.name} <StatusBadge status={po.status} /></span></DialogTitle>
+        <DialogTitle>
+          <span className="flex items-center gap-3">PO-{String(po.id).padStart(4,"0")} — {po.vendor_name} <StatusBadge status={po.status} /></span>
+        </DialogTitle>
       </DialogHeader>
 
-      <div className="mt-2 rounded-lg border">
+      <div className="mt-4 rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -51,24 +51,24 @@ export function PurchaseDetail({ poId, onClose }: { poId: number; onClose: () =>
               <TableHead className="text-right">Received</TableHead>
               <TableHead className="text-right">Unit Cost</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>
-              {canReceive && <TableHead className="w-28 text-right">Receive Now</TableHead>}
+              {canReceive && <TableHead className="w-32 text-right">Receive Now</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {po.lines.map((l) => {
-              const remaining = Number(l.ordered_qty) - Number(l.received_qty);
+              const remaining = l.quantity - l.received_qty;
               return (
                 <TableRow key={l.id}>
-                  <TableCell>{productName(l.product_id)}</TableCell>
-                  <TableCell className="text-right">{Number(l.ordered_qty)}</TableCell>
-                  <TableCell className="text-right">{Number(l.received_qty)}</TableCell>
-                  <TableCell className="text-right">₹{Number(l.unit_price).toFixed(2)}</TableCell>
-                  <TableCell className="text-right">₹{(Number(l.ordered_qty) * Number(l.unit_price)).toFixed(2)}</TableCell>
+                  <TableCell>{l.product ? l.product.name : productName(l.product_id)}</TableCell>
+                  <TableCell className="text-right">{l.quantity}</TableCell>
+                  <TableCell className="text-right">{l.received_qty}</TableCell>
+                  <TableCell className="text-right">₹{l.unit_price.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{l.total_price.toFixed(2)}</TableCell>
                   {canReceive && (
                     <TableCell className="text-right">
                       {remaining > 0 ? (
                         <Input type="number" step="0.001" max={remaining} className="h-8 text-right"
-                          value={recvQty[l.id] ?? ""} placeholder={`≤ ${remaining}`}
+                          value={recvQty[l.id] ?? ""} placeholder={`≤${remaining}`}
                           onChange={(e) => setRecvQty((q) => ({ ...q, [l.id]: e.target.value }))} />
                       ) : <span className="text-xs text-green-700">Done</span>}
                     </TableCell>
@@ -80,13 +80,13 @@ export function PurchaseDetail({ poId, onClose }: { poId: number; onClose: () =>
         </Table>
       </div>
 
-      <div className="mt-2 text-right text-sm font-semibold">Total: ₹{total.toFixed(2)}</div>
+      <div className="mt-2 text-right text-sm font-semibold">Total: ₹{po.total_amount.toFixed(2)}</div>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
       <DialogFooter>
-        {po.status === "draft" && (
+        {po.status === "Draft" && (
           <>
-            <Button variant="destructive" onClick={() => cancel.mutate(po.id)}>Cancel Order</Button>
+            <Button variant="destructive" onClick={() => cancel.mutate(po.id)} disabled={cancel.isPending}>Cancel</Button>
             <Button onClick={() => confirm.mutate(po.id)} disabled={confirm.isPending}>
               {confirm.isPending ? "Confirming…" : "Confirm Order"}
             </Button>

@@ -14,10 +14,8 @@ export function ManufacturingForm({ onClose }: { onClose: () => void }) {
   const [productId, setProductId] = React.useState("");
   const [bomId, setBomId] = React.useState("");
   const [qty, setQty] = React.useState("1");
-  const [scheduled, setScheduled] = React.useState("");
   const [error, setError] = React.useState("");
 
-  // Auto-pick the BoM that matches the chosen product
   const onProduct = (pid: string) => {
     setProductId(pid);
     const match = boms?.find((b) => b.product_id === Number(pid));
@@ -30,12 +28,12 @@ export function ManufacturingForm({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setError("");
     if (!productId) { setError("Select a product to manufacture"); return; }
+    if (!bomId) { setError("Select a Bill of Materials"); return; }
     try {
       await create.mutateAsync({
         product_id: Number(productId),
-        bom_id: bomId ? Number(bomId) : null,
-        qty_to_produce: qty,
-        scheduled_date: scheduled || null,
+        bom_id: Number(bomId),
+        quantity: Number(qty),
       });
       onClose();
     } catch (err: any) {
@@ -56,19 +54,15 @@ export function ManufacturingForm({ onClose }: { onClose: () => void }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Bill of Materials</Label>
-            <Select value={bomId} onChange={(e) => setBomId(e.target.value)}>
-              <option value="">— None —</option>
+            <Label>Bill of Materials *</Label>
+            <Select value={bomId} onChange={(e) => setBomId(e.target.value)} required>
+              <option value="">— Select BoM —</option>
               {matchingBoms.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Quantity to Produce *</Label>
-            <Input type="number" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Scheduled Date</Label>
-            <Input type="date" value={scheduled} onChange={(e) => setScheduled(e.target.value)} />
+            <Input type="number" step="0.001" min="0.001" value={qty} onChange={(e) => setQty(e.target.value)} required />
           </div>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}

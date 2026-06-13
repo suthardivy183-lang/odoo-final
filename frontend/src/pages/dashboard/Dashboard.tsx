@@ -1,29 +1,25 @@
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/StatusBadge";
 import { useDashboard } from "@/hooks/useOrders";
-import { useProducts } from "@/hooks/useProducts";
 
-function StatGroup({ title, counts }: { title: string; counts: Record<string, number> }) {
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+function StatCard({ title, stats }: { title: string; stats: Record<string, number | string> }) {
+  const entries = Object.entries(stats).filter(([k]) => k !== "total" && k !== "total_valuation");
+  const total = stats["total"] ?? stats["total_products"];
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-baseline justify-between">
+        <CardTitle className="flex items-baseline justify-between text-base">
           <span>{title}</span>
-          <span className="text-2xl font-bold">{total}</span>
+          {total !== undefined && <span className="text-2xl font-bold">{total}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {Object.entries(counts)
-          .filter(([, n]) => n > 0)
-          .map(([status, n]) => (
-            <div key={status} className="flex items-center justify-between text-sm">
-              <StatusBadge status={status} />
-              <span className="font-medium">{n}</span>
-            </div>
-          ))}
-        {total === 0 && <p className="text-sm text-muted-foreground">No orders yet</p>}
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between text-sm">
+            <span className="capitalize text-muted-foreground">{k.replace(/_/g, " ")}</span>
+            <span className="font-medium">{typeof v === "number" && k.includes("valuation") ? `₹${v.toFixed(0)}` : v}</span>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );
@@ -31,46 +27,43 @@ function StatGroup({ title, counts }: { title: string; counts: Record<string, nu
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useDashboard();
-  const { data: products } = useProducts();
-
-  const lowStock = (products ?? []).filter(
-    (p) => Number(p.free_to_use_qty) <= 0 && p.product_type === "storable"
-  );
 
   return (
     <div>
-      <PageHeader title="Dashboard" description="Order overview across all modules" />
+      <PageHeader title="Dashboard" description="Order & inventory overview" />
       <div className="p-8">
         {isLoading ? (
           <p className="text-muted-foreground">Loading…</p>
-        ) : (
-          <>
+        ) : stats ? (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <StatGroup title="Sales Orders" counts={stats?.sales ?? {}} />
-              <StatGroup title="Purchase Orders" counts={stats?.purchase ?? {}} />
-              <StatGroup title="Manufacturing" counts={stats?.manufacturing ?? {}} />
+              <StatCard title="Sales Orders" stats={stats.sales_orders} />
+              <StatCard title="Purchase Orders" stats={stats.purchase_orders} />
+              <StatCard title="Manufacturing" stats={stats.manufacturing_orders} />
             </div>
-
-            {lowStock.length > 0 && (
-              <Card className="mt-6">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base text-amber-700">
-                    ⚠ {lowStock.length} product(s) out of free stock
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {lowStock.map((p) => (
-                      <span key={p.id} className="rounded-md bg-amber-50 px-2 py-1 text-sm text-amber-800">
-                        {p.name}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <StatCard title="Products" stats={{
+                "Total Products": stats.products.total,
+                "Finished Goods": stats.products.finished_goods,
+                "Raw Materials": stats.products.raw_materials,
+                "Low Stock Alerts": stats.products.low_stock_alerts,
+                "Inventory Value (₹)": stats.products.total_valuation,
+              }} />
+              {stats.products.low_stock_alerts > 0 && (
+                <Card className="border-amber-200 bg-amber-50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base text-amber-800">⚠ Low Stock Alert</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-amber-700">
+                      {stats.products.low_stock_alerts} product(s) are below their minimum stock level. Check the Products page.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

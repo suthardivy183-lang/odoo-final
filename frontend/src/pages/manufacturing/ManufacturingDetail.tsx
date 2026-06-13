@@ -1,78 +1,61 @@
-import * as React from "react";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { useManufacturingOrders, useManufacturingActions, useBoms } from "@/hooks/useOrders";
+import { useManufacturingOrders, useManufacturingActions } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
 
 export function ManufacturingDetail({ moId, onClose }: { moId: number; onClose: () => void }) {
   const { data: orders } = useManufacturingOrders();
   const { data: products } = useProducts();
-  const { data: boms } = useBoms();
-  const { confirm, produce, cancel } = useManufacturingActions();
-  const [qty, setQty] = React.useState("");
-  const [error, setError] = React.useState("");
+  const { confirm, start, produce, cancel } = useManufacturingActions();
 
   const mo = orders?.find((o) => o.id === moId);
   const productName = (id: number) => products?.find((p) => p.id === id)?.name ?? `#${id}`;
-  const bom = boms?.find((b) => b.id === mo?.bom_id);
 
   if (!mo) return null;
-  const remaining = Number(mo.qty_to_produce) - Number(mo.qty_produced);
-  const canProduce = mo.status === "confirmed" || mo.status === "in_progress";
-  // component consumption preview scales with qty entered
-  const ratio = bom ? (Number(qty || remaining) / Number(bom.qty_produced)) : 0;
 
-  const doProduce = async () => {
-    setError("");
-    const q = qty || String(remaining);
-    if (Number(q) <= 0) { setError("Enter a quantity to produce"); return; }
-    try {
-      await produce.mutateAsync({ id: mo.id, qty: q });
-      setQty("");
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? "Production failed");
-    }
-  };
+  const fg = products?.find((p) => p.id === mo.product_id);
 
   return (
     <Dialog open onClose={onClose} className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle><span className="flex items-center gap-3">{mo.name} <StatusBadge status={mo.status} /></span></DialogTitle>
+        <DialogTitle>
+          <span className="flex items-center gap-3">MO-{String(mo.id).padStart(4,"0")} <StatusBadge status={mo.status} /></span>
+        </DialogTitle>
       </DialogHeader>
 
       <div className="space-y-1 text-sm">
-        <div><span className="text-muted-foreground">Product:</span> {productName(mo.product_id)}</div>
-        <div><span className="text-muted-foreground">To produce:</span> {Number(mo.qty_to_produce)} &nbsp;·&nbsp;
-          <span className="text-muted-foreground">Produced:</span> {Number(mo.qty_produced)} &nbsp;·&nbsp;
-          <span className="text-muted-foreground">Remaining:</span> {remaining}</div>
+        <div><span className="text-muted-foreground">Product:</span> {fg?.name ?? productName(mo.product_id)}</div>
+        <div><span className="text-muted-foreground">Quantity:</span> {mo.quantity}</div>
+        {mo.start_date && <div><span className="text-muted-foreground">Started:</span> {new Date(mo.start_date).toLocaleString()}</div>}
+        {mo.end_date && <div><span className="text-muted-foreground">Completed:</span> {new Date(mo.end_date).toLocaleString()}</div>}
       </div>
 
-      {bom && (
+      {mo.components.length > 0 && (
         <div className="mt-4 rounded-lg border">
-          <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Components (per {Number(bom.qty_produced)} produced)</div>
+          <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Components</div>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Component</TableHead>
-                <TableHead className="text-right">Per Unit</TableHead>
-                <TableHead className="text-right">Will Consume</TableHead>
-                <TableHead className="text-right">In Stock</TableHead>
+                <TableHead className="text-right">Required</TableHead>
+                <TableHead className="text-right">Consumed</TableHead>
+                <TableHead className="text-right">On Hand</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bom.components.map((c) => {
-                const stock = Number(products?.find((p) => p.id === c.product_id)?.on_hand_qty ?? 0);
-                const consume = canProduce ? Number(c.qty) * ratio : 0;
+              {mo.components.map((c) => {
+                const stock = products?.find((p) => p.id === c.component_product_id)?.on_hand_qty ?? 0;
+                const short = stock < c.required_quantity && c.status !== "Consumed";
                 return (
                   <TableRow key={c.id}>
-                    <TableCell>{productName(c.product_id)}</TableCell>
-                    <TableCell className="text-right">{Number(c.qty)}</TableCell>
-                    <TableCell className="text-right">{consume ? consume.toFixed(3) : "—"}</TableCell>
-                    <TableCell className={`text-right ${stock < consume ? "text-destructive font-semibold" : ""}`}>{stock}</TableCell>
+                    <TableCell>{c.component_product ? c.component_product.name : productName(c.component_product_id)}</TableCell>
+                    <TableCell className="text-right">{c.required_quantity}</TableCell>
+                    <TableCell className="text-right">{c.consumed_quantity}</TableCell>
+                    <TableCell className={`text-right ${short ? "text-destructive font-semibold" : ""}`}>{stock}</TableCell>
+                    <TableCell><StatusBadge status={c.status === "Consumed" ? "Completed" : c.status === "Pending" ? "Draft" : c.status} /></TableCell>
                   </TableRow>
                 );
               })}
@@ -81,30 +64,54 @@ export function ManufacturingDetail({ moId, onClose }: { moId: number; onClose: 
         </div>
       )}
 
-      {canProduce && (
-        <div className="mt-4 flex items-end gap-2">
-          <div className="space-y-1.5">
-            <Label>Quantity to Produce Now</Label>
-            <Input type="number" step="0.001" max={remaining} className="w-40"
-              placeholder={`default ${remaining}`} value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
+      {mo.operations.length > 0 && (
+        <div className="mt-4 rounded-lg border">
+          <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Operations</div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Seq</TableHead>
+                <TableHead>Operation</TableHead>
+                <TableHead>Work Center</TableHead>
+                <TableHead className="text-right">Std Time (min)</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mo.operations.map((op) => (
+                <TableRow key={op.id}>
+                  <TableCell>{op.sequence}</TableCell>
+                  <TableCell>{op.operation_name}</TableCell>
+                  <TableCell>{op.work_center}</TableCell>
+                  <TableCell className="text-right">{op.standard_time_minutes}</TableCell>
+                  <TableCell><StatusBadge status={(op as any).status === "Completed" ? "Completed" : "Draft"} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-
       <DialogFooter>
-        {mo.status === "draft" && (
+        {mo.status === "Draft" && (
           <>
-            <Button variant="destructive" onClick={() => cancel.mutate(mo.id)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => cancel.mutate(mo.id)} disabled={cancel.isPending}>Cancel</Button>
             <Button onClick={() => confirm.mutate(mo.id)} disabled={confirm.isPending}>
-              {confirm.isPending ? "Confirming…" : "Confirm Order"}
+              {confirm.isPending ? "…" : "Confirm (→ Planned)"}
             </Button>
           </>
         )}
-        {canProduce && (
-          <Button onClick={doProduce} disabled={produce.isPending}>
-            {produce.isPending ? "Producing…" : "Produce"}
+        {mo.status === "Planned" && (
+          <>
+            <Button variant="destructive" onClick={() => cancel.mutate(mo.id)} disabled={cancel.isPending}>Cancel</Button>
+            <Button onClick={() => start.mutate(mo.id)} disabled={start.isPending}>
+              {start.isPending ? "…" : "Start Production (→ In Progress)"}
+            </Button>
+          </>
+        )}
+        {mo.status === "In Progress" && (
+          <Button onClick={() => produce.mutate(mo.id)} disabled={produce.isPending}>
+            {produce.isPending ? "Producing…" : "Produce & Complete"}
           </Button>
         )}
         <Button variant="outline" onClick={onClose}>Close</Button>

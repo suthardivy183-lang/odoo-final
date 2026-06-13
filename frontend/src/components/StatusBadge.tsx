@@ -1,19 +1,16 @@
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
-  // Sales / Purchase / Manufacturing shared
-  draft: { label: "Draft", variant: "muted" },
-  confirmed: { label: "Confirmed", variant: "info" },
-  cancelled: { label: "Cancelled", variant: "destructive" },
-  // Sales
-  partially_delivered: { label: "Partially Delivered", variant: "warning" },
-  fully_delivered: { label: "Fully Delivered", variant: "success" },
-  // Purchase
-  partially_received: { label: "Partially Received", variant: "warning" },
-  fully_received: { label: "Fully Received", variant: "success" },
-  // Manufacturing
-  in_progress: { label: "In Progress", variant: "warning" },
-  done: { label: "Done", variant: "success" },
+  Draft: { label: "Draft", variant: "muted" },
+  Confirmed: { label: "Confirmed", variant: "info" },
+  Planned: { label: "Planned", variant: "info" },
+  "In Progress": { label: "In Progress", variant: "warning" },
+  "Partially Delivered": { label: "Partially Delivered", variant: "warning" },
+  "Fully Delivered": { label: "Fully Delivered", variant: "success" },
+  "Partially Received": { label: "Partially Received", variant: "warning" },
+  "Fully Received": { label: "Fully Received", variant: "success" },
+  Completed: { label: "Completed", variant: "success" },
+  Cancelled: { label: "Cancelled", variant: "destructive" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

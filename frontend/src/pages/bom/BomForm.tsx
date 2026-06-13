@@ -5,39 +5,44 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useProducts } from "@/hooks/useProducts";
 import { useBomActions } from "@/hooks/useOrders";
 import type { BillOfMaterials } from "@/lib/types";
 
-interface CompDraft { product_id: number | ""; qty: string; }
+interface CompDraft { component_product_id: number | ""; quantity: string; }
+interface OpDraft { sequence: number; operation_name: string; work_center: string; standard_time_minutes: string; }
 
 export function BomForm({ bom, onClose }: { bom: BillOfMaterials | null; onClose: () => void }) {
   const { data: products } = useProducts();
   const { create, update } = useBomActions();
   const [name, setName] = React.useState(bom?.name ?? "");
   const [productId, setProductId] = React.useState<string>(bom ? String(bom.product_id) : "");
-  const [qtyProduced, setQtyProduced] = React.useState(bom?.qty_produced ?? "1.000");
+  const [description, setDescription] = React.useState(bom?.description ?? "");
   const [comps, setComps] = React.useState<CompDraft[]>(
-    bom?.components.map((c) => ({ product_id: c.product_id, qty: c.qty })) ?? [{ product_id: "", qty: "1" }]
+    bom?.components.map((c) => ({ component_product_id: c.component_product_id, quantity: String(c.quantity) })) ?? [{ component_product_id: "", quantity: "1" }]
+  );
+  const [ops, setOps] = React.useState<OpDraft[]>(
+    bom?.operations.map((o) => ({ sequence: o.sequence, operation_name: o.operation_name, work_center: o.work_center, standard_time_minutes: String(o.standard_time_minutes) })) ?? []
   );
   const [error, setError] = React.useState("");
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const valid = comps.filter((c) => c.product_id && Number(c.qty) > 0);
+    const validComps = comps.filter((c) => c.component_product_id && Number(c.quantity) > 0);
     if (!productId) { setError("Select the product this BoM produces"); return; }
-    if (valid.length === 0) { setError("Add at least one component"); return; }
+    if (validComps.length === 0) { setError("Add at least one component"); return; }
     try {
       if (bom) {
-        await update.mutateAsync({ id: bom.id, name, qty_produced: qtyProduced });
-        // Note: component editing on existing BoM uses PUT /bom/:id/components (Track A)
+        await update.mutateAsync({ id: bom.id, name, description });
       } else {
         await create.mutateAsync({
           name,
           product_id: Number(productId),
-          qty_produced: qtyProduced,
-          components: valid.map((c) => ({ product_id: c.product_id, qty: c.qty })),
+          description: description || null,
+          components: validComps.map((c) => ({ component_product_id: c.component_product_id, quantity: Number(c.quantity) })),
+          operations: ops.map((o) => ({ ...o, standard_time_minutes: Number(o.standard_time_minutes) })),
         });
       }
       onClose();
@@ -62,28 +67,27 @@ export function BomForm({ bom, onClose }: { bom: BillOfMaterials | null; onClose
               {products?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label>Qty Produced</Label>
-            <Input type="number" step="0.001" value={qtyProduced} onChange={(e) => setQtyProduced(e.target.value)} />
-          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Description</Label>
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
+        {/* Components */}
         <div className="space-y-2">
           <Label>Components</Label>
-          {bom && <p className="text-xs text-muted-foreground">Component editing on existing BoMs is limited in MVP — recreate for major changes.</p>}
+          {bom && <p className="text-xs text-muted-foreground">Only name/description editable on existing BoMs.</p>}
           {comps.map((c, i) => (
-            <div key={i} className="flex items-end gap-2">
+            <div key={i} className="flex items-center gap-2">
               <div className="flex-1">
-                <Select value={c.product_id} disabled={!!bom}
-                  onChange={(e) => setComps(comps.map((x, idx) => idx === i ? { ...x, product_id: e.target.value ? Number(e.target.value) : "" } : x))}>
+                <Select value={c.component_product_id} disabled={!!bom}
+                  onChange={(e) => setComps(comps.map((x, idx) => idx === i ? { ...x, component_product_id: e.target.value ? Number(e.target.value) : "" } : x))}>
                   <option value="">— Component —</option>
                   {products?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </Select>
               </div>
-              <div className="w-24">
-                <Input type="number" step="0.001" value={c.qty} disabled={!!bom}
-                  onChange={(e) => setComps(comps.map((x, idx) => idx === i ? { ...x, qty: e.target.value } : x))} />
-              </div>
+              <Input type="number" step="0.001" className="w-24" value={c.quantity} disabled={!!bom}
+                onChange={(e) => setComps(comps.map((x, idx) => idx === i ? { ...x, quantity: e.target.value } : x))} />
               {!bom && (
                 <Button type="button" variant="ghost" size="icon" onClick={() => setComps(comps.filter((_, idx) => idx !== i))}>
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -92,11 +96,30 @@ export function BomForm({ bom, onClose }: { bom: BillOfMaterials | null; onClose
             </div>
           ))}
           {!bom && (
-            <Button type="button" variant="outline" size="sm" onClick={() => setComps([...comps, { product_id: "", qty: "1" }])}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setComps([...comps, { component_product_id: "", quantity: "1" }])}>
               <Plus className="h-4 w-4" /> Add Component
             </Button>
           )}
         </div>
+
+        {/* Operations (new BoM only) */}
+        {!bom && (
+          <div className="space-y-2">
+            <Label>Operations <span className="text-xs text-muted-foreground">(optional)</span></Label>
+            {ops.map((o, i) => (
+              <div key={i} className="grid grid-cols-[40px_1fr_1fr_80px_36px] items-center gap-2">
+                <Input type="number" value={o.sequence} onChange={(e) => setOps(ops.map((x, idx) => idx === i ? { ...x, sequence: Number(e.target.value) } : x))} placeholder="Seq" />
+                <Input value={o.operation_name} onChange={(e) => setOps(ops.map((x, idx) => idx === i ? { ...x, operation_name: e.target.value } : x))} placeholder="Operation name" />
+                <Input value={o.work_center} onChange={(e) => setOps(ops.map((x, idx) => idx === i ? { ...x, work_center: e.target.value } : x))} placeholder="Work center" />
+                <Input type="number" value={o.standard_time_minutes} onChange={(e) => setOps(ops.map((x, idx) => idx === i ? { ...x, standard_time_minutes: e.target.value } : x))} placeholder="Mins" />
+                <Button type="button" variant="ghost" size="icon" onClick={() => setOps(ops.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setOps([...ops, { sequence: (ops.length + 1) * 10, operation_name: "", work_center: "", standard_time_minutes: "60" }])}>
+              <Plus className="h-4 w-4" /> Add Operation
+            </Button>
+          </div>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>

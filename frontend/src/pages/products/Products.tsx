@@ -38,9 +38,9 @@ export default function Products() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Reference</TableHead>
+                <TableHead>SKU</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead className="text-right">Sales Price</TableHead>
                 <TableHead className="text-right">On Hand</TableHead>
                 <TableHead className="text-right">Reserved</TableHead>
@@ -52,19 +52,19 @@ export default function Products() {
               {isLoading && (
                 <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>
               )}
-              {products?.length === 0 && (
+              {!isLoading && products?.length === 0 && (
                 <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No products</TableCell></TableRow>
               )}
               {products?.map((p) => {
-                const free = Number(p.free_to_use_qty);
+                const free = p.free_to_use_qty;
                 return (
                   <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.internal_ref ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.sku}</TableCell>
                     <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell><Badge variant="muted">{p.product_type}</Badge></TableCell>
-                    <TableCell className="text-right">₹{Number(p.sales_price).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{Number(p.on_hand_qty)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{Number(p.reserved_qty)}</TableCell>
+                    <TableCell><Badge variant="muted">{p.category}</Badge></TableCell>
+                    <TableCell className="text-right">₹{p.sales_price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{p.on_hand_qty}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{p.reserved_qty}</TableCell>
                     <TableCell className="text-right">
                       <span className={free <= 0 ? "font-semibold text-destructive" : "font-semibold text-green-700"}>
                         {free}

@@ -31,21 +31,23 @@ export default function Bom() {
               <TableRow>
                 <TableHead>BoM Name</TableHead>
                 <TableHead>Produces</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
                 <TableHead>Components</TableHead>
+                <TableHead>Operations</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
-              {boms?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No BoMs</TableCell></TableRow>}
+              {!isLoading && boms?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No BoMs</TableCell></TableRow>}
               {boms?.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell className="font-medium">{b.name}</TableCell>
                   <TableCell>{productName(b.product_id)}</TableCell>
-                  <TableCell className="text-right">{Number(b.qty_produced)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {b.components.map((c) => `${Number(c.qty)}× ${productName(c.product_id)}`).join(", ")}
+                    {b.components.map((c) => `${c.quantity}× ${productName(c.component_product_id)}`).join(", ")}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {b.operations.map((o) => o.operation_name).join(", ") || "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
