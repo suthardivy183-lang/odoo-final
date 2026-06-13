@@ -33,7 +33,7 @@ export function ManufacturingDetail({ moId, onClose }: { moId: number; onClose: 
       </div>
 
       {mo.components.length > 0 && (
-        <div className="mt-4 rounded-lg border">
+        <div className="mt-4 overflow-hidden rounded-lg border border-border">
           <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Components</div>
           <Table>
             <TableHeader>
@@ -77,7 +77,7 @@ export function ManufacturingDetail({ moId, onClose }: { moId: number; onClose: 
       )}
 
       {mo.operations.length > 0 && (
-        <div className="mt-4 rounded-lg border">
+        <div className="mt-4 overflow-hidden rounded-lg border border-border">
           <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Operations</div>
           <Table>
             <TableHeader>

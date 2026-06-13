@@ -1,4 +1,10 @@
-export type Role = "admin" | "sales" | "purchase" | "inventory" | "production";
+export type Role =
+  | "admin"
+  | "sales"
+  | "purchase"
+  | "manufacturing"
+  | "inventory_manager"
+  | "business_owner";
 
 export interface User {
   id: number;

@@ -25,8 +25,9 @@ def seed_db():
             User(username="admin", password_hash=get_password_hash("admin123"), role="admin"),
             User(username="sales", password_hash=get_password_hash("sales123"), role="sales"),
             User(username="purchase", password_hash=get_password_hash("purchase123"), role="purchase"),
-            User(username="inventory", password_hash=get_password_hash("inventory123"), role="inventory"),
-            User(username="production", password_hash=get_password_hash("production123"), role="production"),
+            User(username="manufacturing", password_hash=get_password_hash("manufacturing123"), role="manufacturing"),
+            User(username="inventory", password_hash=get_password_hash("inventory123"), role="inventory_manager"),
+            User(username="owner", password_hash=get_password_hash("owner123"), role="business_owner"),
         ]
         db.add_all(users)
         db.commit()

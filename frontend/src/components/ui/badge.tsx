@@ -3,18 +3,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
   {
     variants: {
       variant: {
         default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-transparent bg-destructive text-destructive-foreground",
-        outline: "text-foreground",
-        success: "border-transparent bg-green-100 text-green-800",
-        warning: "border-transparent bg-amber-100 text-amber-800",
-        info: "border-transparent bg-blue-100 text-blue-800",
-        muted: "border-transparent bg-gray-100 text-gray-700",
+        secondary: "border-border bg-secondary text-secondary-foreground",
+        destructive: "border-transparent bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20",
+        outline: "border-border text-muted-foreground",
+        success: "border-transparent bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+        warning: "border-transparent bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
+        info: "border-transparent bg-primary-wash text-primary ring-1 ring-inset ring-primary/20",
+        muted: "border-transparent bg-muted text-muted-foreground ring-1 ring-inset ring-border",
       },
     },
     defaultVariants: { variant: "default" },

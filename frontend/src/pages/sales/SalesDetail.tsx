@@ -24,7 +24,7 @@ export function SalesDetail({ soId, onClose }: { soId: number; onClose: () => vo
         </DialogTitle>
       </DialogHeader>
 
-      <div className="mt-4 rounded-lg border">
+      <div className="mt-4 overflow-hidden rounded-lg border border-border [&_thead]:bg-muted/40">
         <Table>
           <TableHeader>
             <TableRow>
@@ -56,7 +56,10 @@ export function SalesDetail({ soId, onClose }: { soId: number; onClose: () => vo
         </Table>
       </div>
 
-      <div className="mt-2 text-right text-sm font-semibold">Total: ₹{so.total_amount.toFixed(2)}</div>
+      <div className="mt-3 flex items-center justify-end gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Order Total</span>
+        <span className="tnum text-lg font-semibold text-foreground">₹{so.total_amount.toFixed(2)}</span>
+      </div>
 
       {canDeliver && (
         <p className="mt-2 text-xs text-muted-foreground">

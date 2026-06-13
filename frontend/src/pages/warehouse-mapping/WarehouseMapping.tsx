@@ -858,7 +858,7 @@ export default function WarehouseMapping() {
                           {act.activity_type === "Allocated" ? (
                             <ArrowDownToLine className="h-4 w-4 text-green-600" />
                           ) : act.activity_type === "Transferred" ? (
-                            <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+                            <ArrowLeftRight className="h-4 w-4 text-primary" />
                           ) : (
                             <ArrowUpFromLine className="h-4 w-4 text-red-600" />
                           )}

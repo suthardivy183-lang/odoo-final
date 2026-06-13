@@ -6,7 +6,7 @@ import type { User } from "@/lib/types";
 interface AuthState {
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -14,8 +14,17 @@ const AuthContext = React.createContext<AuthState | null>(null);
 
 function loadStoredUser(): User | null {
   try {
+    const token = localStorage.getItem("token");
     const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
+    // Both must be present to count as logged in. If the token was cleared
+    // (e.g. by the 401 interceptor) but a stale user remains, treat as logged
+    // out — otherwise ProtectedRoute/Login bounce between each other forever.
+    if (!token || !raw) {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      return null;
+    }
+    return JSON.parse(raw);
   } catch {
     return null;
   }
@@ -42,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
     qc.clear();
+    return data.user;
   };
 
   const logout = () => {

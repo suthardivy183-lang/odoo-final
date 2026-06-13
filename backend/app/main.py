@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
 from backend.app.config import settings
 from backend.app.utils.context import current_user_id, current_username
+from backend.app.permissions import require_module
 from backend.app.routers import auth, products, sales_orders, purchase_orders, bom, manufacturing, audit_logs, dashboard, insights, warehouse_mapping
 
 app = FastAPI(
@@ -43,17 +44,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
+# Register routers (RBAC guards attached here — see permissions.py).
+# read_all=True keeps GET reads open to any authenticated user so the
+# cross-module dashboard and shared form pickers keep working; writes are
+# still gated to the owning role + admin.
 app.include_router(auth.router)
-app.include_router(products.router)
-app.include_router(sales_orders.router)
-app.include_router(purchase_orders.router)
-app.include_router(bom.router)
-app.include_router(manufacturing.router)
-app.include_router(audit_logs.router)
-app.include_router(dashboard.router)
-app.include_router(insights.router)
-app.include_router(warehouse_mapping.router)
+app.include_router(products.router, dependencies=[Depends(require_module("inventory", read_all=True))])
+app.include_router(sales_orders.router, dependencies=[Depends(require_module("sales", read_all=True))])
+app.include_router(purchase_orders.router, dependencies=[Depends(require_module("purchase", read_all=True))])
+app.include_router(bom.router, dependencies=[Depends(require_module("bom", read_all=True))])
+app.include_router(manufacturing.router, dependencies=[Depends(require_module("manufacturing", read_all=True))])
+app.include_router(audit_logs.router, dependencies=[Depends(require_module("audit"))])
+app.include_router(dashboard.router, dependencies=[Depends(require_module("dashboard"))])
+app.include_router(insights.router, dependencies=[Depends(require_module("dashboard"))])
+app.include_router(warehouse_mapping.router, dependencies=[Depends(require_module("inventory", read_all=True))])
 
 @app.get("/")
 def read_root():

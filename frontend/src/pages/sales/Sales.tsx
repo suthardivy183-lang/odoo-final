@@ -22,7 +22,7 @@ export default function Sales() {
         action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New Sales Order</Button>}
       />
       <div className="p-8">
-        <div className="rounded-lg border bg-background">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm [&_thead]:bg-muted/40">
           <Table>
             <TableHeader>
               <TableRow>

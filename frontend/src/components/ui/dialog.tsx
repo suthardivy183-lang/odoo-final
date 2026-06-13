@@ -19,14 +19,21 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 py-10">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/20 p-4 py-10 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className={cn("relative w-full max-w-2xl rounded-lg border bg-background p-6 shadow-lg", className)}
+        className={cn(
+          "animate-in-up relative w-full max-w-2xl rounded-xl border border-border bg-background p-6 shadow-xl",
+          className
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100"
+          aria-label="Close"
+          className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
@@ -37,11 +44,11 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 }
 
 export function DialogHeader({ children }: { children: React.ReactNode }) {
-  return <div className="mb-4 flex flex-col space-y-1.5">{children}</div>;
+  return <div className="mb-5 flex flex-col space-y-1.5 pr-8">{children}</div>;
 }
 
 export function DialogTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-lg font-semibold">{children}</h2>;
+  return <h2 className="text-lg font-semibold tracking-tight">{children}</h2>;
 }
 
 export function DialogFooter({ children }: { children: React.ReactNode }) {

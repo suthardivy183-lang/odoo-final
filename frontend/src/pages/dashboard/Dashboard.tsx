@@ -333,7 +333,7 @@ function HeaderMetric({
         </div>
         <div>
           <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-slate-950">{value}</p>
+          <p className="tnum mt-1 text-3xl font-bold text-slate-950">{value}</p>
         </div>
       </CardContent>
     </Card>
@@ -349,7 +349,7 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-2xl text-slate-950">
-              <ClipboardList className="h-6 w-6 text-blue-600" />
+              <ClipboardList className="h-6 w-6 text-primary" />
               Priority Queue
             </CardTitle>
             <p className="mt-2 text-sm text-slate-500">Sorted by business impact.</p>
@@ -373,7 +373,7 @@ function PriorityQueue({ items, loading }: { items: PriorityItem[]; loading: boo
                 { label: "Required", value: item.required },
                 { label: "Available", value: item.available },
                 { label: "Shortage", value: item.shortage },
-              ].filter((entry): entry is { label: string; value: number } => entry.value !== undefined);
+              ].filter((entry): entry is { label: string; value: number } => entry.value != null);
 
               return (
                 <div
@@ -451,7 +451,7 @@ function ManufacturingReadiness({ rows, loading }: { rows: ReadinessRow[]; loadi
     <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
       <CardHeader className="border-b border-slate-100 p-6">
         <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
-          <Factory className="h-5 w-5 text-blue-600" />
+          <Factory className="h-5 w-5 text-primary" />
           Manufacturing Readiness
         </CardTitle>
       </CardHeader>
@@ -477,7 +477,7 @@ function ManufacturingReadiness({ rows, loading }: { rows: ReadinessRow[]; loadi
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase text-slate-500">Can Produce</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-950">{formatNumber(row.maxUnits)} Units</p>
+                    <p className="tnum mt-1 text-2xl font-bold text-slate-950">{formatNumber(row.maxUnits)} Units</p>
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase text-slate-500">Current Bottleneck</p>
@@ -528,7 +528,7 @@ function SnapshotCard({
           <span className="text-xs font-semibold uppercase text-slate-400">Live</span>
         </div>
         <p className="mt-5 text-sm font-semibold text-slate-500">{label}</p>
-        <p className="mt-2 text-3xl font-bold text-slate-950">{value}</p>
+        <p className="tnum mt-2 text-3xl font-bold text-slate-950">{value}</p>
         <p className="mt-2 text-sm text-slate-500">{detail}</p>
       </CardContent>
     </Card>
@@ -585,14 +585,14 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-semibold uppercase text-slate-400">Business Health</p>
                   <div className="mt-4 flex items-end gap-2">
-                    <span className="text-6xl font-bold leading-none">{healthScore}</span>
+                    <span className="tnum text-6xl font-bold leading-none">{healthScore}</span>
                     <span className="pb-2 text-2xl font-semibold text-slate-400">/100</span>
                   </div>
                 </div>
-                <Gauge className="h-8 w-8 text-blue-300" />
+                <Gauge className="h-8 w-8 text-indigo-300" />
               </div>
               <div className="mt-6 h-2 rounded-full bg-white/15">
-                <div className="h-2 rounded-full bg-blue-400" style={{ width: `${healthScore}%` }} />
+                <div className="h-2 rounded-full bg-indigo-400" style={{ width: `${healthScore}%` }} />
               </div>
               <div className={cn("mt-5 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-bold ring-1", status.className)}>
                 <ShieldCheck className="h-4 w-4" />

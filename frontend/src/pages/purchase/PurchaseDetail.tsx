@@ -42,7 +42,7 @@ export function PurchaseDetail({ poId, onClose }: { poId: number; onClose: () =>
         </DialogTitle>
       </DialogHeader>
 
-      <div className="mt-4 rounded-lg border">
+      <div className="mt-4 overflow-hidden rounded-lg border border-border [&_thead]:bg-muted/40">
         <Table>
           <TableHeader>
             <TableRow>
@@ -80,7 +80,10 @@ export function PurchaseDetail({ poId, onClose }: { poId: number; onClose: () =>
         </Table>
       </div>
 
-      <div className="mt-2 text-right text-sm font-semibold">Total: ₹{po.total_amount.toFixed(2)}</div>
+      <div className="mt-3 flex items-center justify-end gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Order Total</span>
+        <span className="tnum text-lg font-semibold text-foreground">₹{po.total_amount.toFixed(2)}</span>
+      </div>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
       <DialogFooter>

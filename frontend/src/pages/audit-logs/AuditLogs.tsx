@@ -189,7 +189,7 @@ export default function ActivityTimeline() {
         description="See who did what across your business — sales, inventory, purchasing, and production"
       />
       <div className="p-8">
-        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border bg-background p-4">
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Filter className="h-4 w-4" />
             Filters

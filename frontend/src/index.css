@@ -2,28 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Design system — 70% Linear / 30% Stripe
+  ----------------------------------------
+  Linear drives: shell, navigation, ops center, workflows
+    · single indigo accent (#5E6AD2)
+    · low-contrast hairline borders, tight grid, restrained elevation
+  Stripe drives: forms, tables, detail/record pages
+    · near-white canvas (#f6f9fc), deep-navy ink (#0d253d)
+    · soft layered shadows (rgba(60,66,87,…)), borderless surfaces by spacing
+*/
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surfaces */
+    --background: 0 0% 100%;            /* card / panel white */
+    --canvas: 213 33% 98%;             /* Stripe #f6f9fc app canvas */
+    --foreground: 211 56% 15%;         /* Stripe deep navy ink #0d253d */
+
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 211 56% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --popover-foreground: 211 56% 15%;
+
+    /* Brand — Linear indigo, the single chromatic accent */
+    --primary: 234 56% 60%;            /* #5E6AD2 */
+    --primary-foreground: 0 0% 100%;
+    --primary-emphasis: 234 49% 52%;   /* hover / pressed */
+    --primary-wash: 234 70% 97%;       /* tinted indigo surface */
+
+    /* Neutral surfaces (Linear fog/platinum family) */
+    --secondary: 220 23% 96.5%;
+    --secondary-foreground: 211 40% 22%;
+    --muted: 220 23% 97%;
+    --muted-foreground: 218 9% 46%;    /* Linear Fog #8a8f98, nudged for contrast */
+    --accent: 222 28% 95%;             /* hover surface */
+    --accent-foreground: 211 45% 20%;
+
+    /* Status */
+    --destructive: 358 70% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 64% 38%;
+    --warning: 32 90% 48%;
+    --info: 234 56% 60%;
+
+    /* Lines & focus */
+    --border: 216 20% 91%;             /* hairline */
+    --border-strong: 216 18% 84%;
+    --input: 216 20% 89%;
+    --ring: 234 56% 60%;
+
+    --radius: 0.625rem;                /* 10px — Linear/Stripe hybrid */
   }
 }
 
@@ -31,7 +60,69 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
   }
+
+  body {
+    @apply bg-canvas text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: normal;
+  }
+
+  /* Display headings — Linear/Stripe negative tracking */
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+  }
+
+  /* Tabular numerals for money / metrics */
+  .tnum {
+    font-feature-settings: "tnum", "cv11", "ss01";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Selection — indigo wash */
+  ::selection {
+    background: hsl(234 56% 60% / 0.18);
+  }
+
+  /* Refined scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(216 14% 80%) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(216 14% 82%);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(216 14% 72%);
+  }
+}
+
+@layer utilities {
+  /* Subtle grid/glow background for command-center surfaces (Linear) */
+  .bg-grid-faint {
+    background-image:
+      linear-gradient(to right, hsl(216 20% 91% / 0.6) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(216 20% 91% / 0.6) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .animate-in-up {
+    animation: in-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
