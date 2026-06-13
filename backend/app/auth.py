@@ -30,7 +30,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -52,15 +52,17 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     # Set context variables for the current request lifecycle
     current_user_id.set(user.id)
     current_username.set(user.username)
+    print(f"[AUTH DEBUG] get_current_user: Set context for {user.username} (ID: {user.id})")
 
     return user
 
-def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+
+async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 # Role check helper factory
 def check_role(allowed_roles: list[str]):
-    def role_dependency(current_user: User = Depends(get_current_user)):
+    async def role_dependency(current_user: User = Depends(get_current_user)):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -68,3 +70,4 @@ def check_role(allowed_roles: list[str]):
             )
         return current_user
     return role_dependency
+

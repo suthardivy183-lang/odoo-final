@@ -14,9 +14,8 @@ class UserResponse(BaseModel):
     username: str
     role: str
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = {"from_attributes": True}
+
 
 class TokenResponse(BaseModel):
     access_token: str

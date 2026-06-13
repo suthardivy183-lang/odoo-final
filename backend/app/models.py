@@ -19,15 +19,31 @@ class Product(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     category = Column(String, nullable=False)  # "Raw Material" or "Finished Good"
-    price = Column(Float, default=0.0, nullable=False)
-    stock = Column(Float, default=0.0, nullable=False)
+    sales_price = Column(Float, default=0.0, nullable=False)
+    cost_price = Column(Float, default=0.0, nullable=False)
+    on_hand_qty = Column(Float, default=0.0, nullable=False)
+    reserved_qty = Column(Float, default=0.0, nullable=False)
     min_stock_level = Column(Float, default=0.0, nullable=False)
     is_bom_item = Column(Boolean, default=False, nullable=False)
+    
+    # Missing fields for automatic procurement & multi-level routing
+    procure_on_demand = Column(Boolean, default=False, nullable=False)
+    procurement_type = Column(String, nullable=True)  # "purchase" or "manufacturing"
+    vendor_id = Column(String, nullable=True)  # default vendor (string or numeric identifier)
+    bom_id = Column(Integer, ForeignKey("boms.id", name="fk_product_bom", use_alter=True), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship to BoM (a finished good can have one BoM)
-    bom = relationship("BoM", back_populates="product", uselist=False)
+    # Relationships
+    # bom is the inverse of BoM.product mapped by BoM.product_id
+    bom = relationship("BoM", back_populates="product", uselist=False, foreign_keys="[BoM.product_id]")
+    # active_bom is mapped by Product.bom_id
+    active_bom = relationship("BoM", foreign_keys=[bom_id])
+
+    @property
+    def free_to_use_qty(self) -> float:
+        return self.on_hand_qty - self.reserved_qty
 
 class SalesOrder(Base):
     __tablename__ = "sales_orders"
@@ -73,6 +89,7 @@ class PurchaseOrderLine(Base):
     quantity = Column(Float, nullable=False)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
+    received_qty = Column(Float, default=0.0, nullable=False)
 
     purchase_order = relationship("PurchaseOrder", back_populates="lines")
     product = relationship("Product")
@@ -86,7 +103,7 @@ class BoM(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    product = relationship("Product", back_populates="bom")
+    product = relationship("Product", back_populates="bom", foreign_keys=[product_id])
     components = relationship("BoMComponent", back_populates="bom", cascade="all, delete-orphan")
     operations = relationship("BoMOperation", back_populates="bom", cascade="all, delete-orphan")
 
@@ -187,6 +204,7 @@ def audit_after_insert(mapper, connection, target):
     from backend.app.utils.context import current_user_id, current_username
     uid = current_user_id.get(None)
     uname = current_username.get(None)
+    print(f"[AUDIT DEBUG] after_insert: uid={uid}, uname={uname}, target={target.__tablename__}")
 
     connection.execute(
         AuditLog.__table__.insert().values(
@@ -210,6 +228,9 @@ def audit_after_update(mapper, connection, target):
     old_values = {}
     new_values = {}
     for col in state.mapper.columns:
+        # Check if the column is present in the target class attribute map
+        if col.key not in state.attrs:
+            continue
         attr = state.attrs[col.key]
         hist = attr.history
         if hist.has_changes():
@@ -238,6 +259,7 @@ def audit_after_update(mapper, connection, target):
     from backend.app.utils.context import current_user_id, current_username
     uid = current_user_id.get(None)
     uname = current_username.get(None)
+    print(f"[AUDIT DEBUG] after_update: uid={uid}, uname={uname}, target={target.__tablename__}")
 
     connection.execute(
         AuditLog.__table__.insert().values(

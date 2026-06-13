@@ -33,40 +33,60 @@ def seed_db():
             name="Teak Wood Plank",
             description="Premium teak wood plank (2m x 0.2m x 0.05m)",
             category="Raw Material",
-            price=50.0,
-            stock=20.0,
+            sales_price=0.0,
+            cost_price=50.0,
+            on_hand_qty=20.0,
+            reserved_qty=0.0,
             min_stock_level=10.0,
-            is_bom_item=False
+            is_bom_item=False,
+            procure_on_demand=True,
+            procurement_type="purchase",
+            vendor_id="WoodSupplierInc"
         )
         rm_screws = Product(
             sku="RM002",
             name="Wood Screws (Box of 100)",
             description="1.5 inch premium zinc-plated wood screws",
             category="Raw Material",
-            price=5.0,
-            stock=15.0,
+            sales_price=0.0,
+            cost_price=5.0,
+            on_hand_qty=15.0,
+            reserved_qty=0.0,
             min_stock_level=5.0,
-            is_bom_item=False
+            is_bom_item=False,
+            procure_on_demand=True,
+            procurement_type="purchase",
+            vendor_id="ScrewEmporium"
         )
         rm_sandpaper = Product(
             sku="RM003",
             name="Sandpaper Sheet",
             description="180-grit silicon carbide sandpaper sheet",
             category="Raw Material",
-            price=1.5,
-            stock=30.0,
+            sales_price=0.0,
+            cost_price=1.5,
+            on_hand_qty=30.0,
+            reserved_qty=0.0,
             min_stock_level=10.0,
-            is_bom_item=False
+            is_bom_item=False,
+            procure_on_demand=True,
+            procurement_type="purchase",
+            vendor_id="AbrasivesDirect"
         )
         rm_varnish = Product(
             sku="RM004",
             name="Wood Varnish (1L)",
             description="Clear satin polyurethane wood varnish",
             category="Raw Material",
-            price=12.0,
-            stock=8.0,
+            sales_price=0.0,
+            cost_price=12.0,
+            on_hand_qty=8.0,
+            reserved_qty=0.0,
             min_stock_level=3.0,
-            is_bom_item=False
+            is_bom_item=False,
+            procure_on_demand=True,
+            procurement_type="purchase",
+            vendor_id="CoatingsLtd"
         )
 
         # Finished goods
@@ -75,10 +95,15 @@ def seed_db():
             name="Wooden Dining Table",
             description="Handcrafted solid teak wood dining table",
             category="Finished Good",
-            price=500.0,
-            stock=5.0,
+            sales_price=500.0,
+            cost_price=260.0,
+            on_hand_qty=5.0,
+            reserved_qty=0.0,
             min_stock_level=2.0,
-            is_bom_item=True
+            is_bom_item=True,
+            procure_on_demand=True,
+            procurement_type="manufacturing",
+            vendor_id=None
         )
 
         db.add_all([rm_wood, rm_screws, rm_sandpaper, rm_varnish, fg_table])
@@ -91,6 +116,10 @@ def seed_db():
             description="Bill of materials for crafting a standard teak dining table"
         )
         db.add(table_bom)
+        db.commit()
+
+        # Update fg_table.bom_id to point to the newly created BoM
+        fg_table.bom_id = table_bom.id
         db.commit()
 
         # Add components
