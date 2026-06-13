@@ -60,11 +60,11 @@ export default function Login() {
         <div className="bg-grid-faint pointer-events-none absolute inset-0 opacity-[0.07]" />
         <div
           className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(94,106,210,0.55), transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(220,38,38,0.5), transparent 70%)" }}
         />
         <div
           className="pointer-events-none absolute -bottom-40 right-0 h-96 w-96 rounded-full opacity-40 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(94,106,210,0.4), transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(220,38,38,0.38), transparent 70%)" }}
         />
 
         <div className="relative flex items-center gap-2.5">
@@ -79,12 +79,12 @@ export default function Login() {
 
         <div className="relative max-w-md">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+            <Sparkles className="h-3.5 w-3.5 text-red-300" />
             AI-native operations platform
           </div>
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
             Run the floor from one
-            <span className="text-indigo-300"> operations center.</span>
+            <span className="text-red-300"> operations center.</span>
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-white/60">
             Demand, procurement, production and inventory — unified, prioritized, and ready to act on.
@@ -94,7 +94,7 @@ export default function Login() {
             {HIGHLIGHTS.map((h) => (
               <div key={h.title} className="flex gap-3.5">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-                  <h.icon className="h-[18px] w-[18px] text-indigo-300" />
+                  <h.icon className="h-[18px] w-[18px] text-red-300" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-white/90">{h.title}</div>

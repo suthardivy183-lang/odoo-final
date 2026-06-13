@@ -26,10 +26,10 @@
     --popover-foreground: 211 56% 15%;
 
     /* Brand — Linear indigo, the single chromatic accent */
-    --primary: 234 56% 60%;            /* #5E6AD2 */
+    --primary: 0 72% 51%;              /* #DC2626 — professional red */
     --primary-foreground: 0 0% 100%;
-    --primary-emphasis: 234 49% 52%;   /* hover / pressed */
-    --primary-wash: 234 70% 97%;       /* tinted indigo surface */
+    --primary-emphasis: 0 72% 44%;     /* hover / pressed (#B91C1C) */
+    --primary-wash: 0 86% 97%;         /* tinted red surface (#FEF2F2) */
 
     /* Neutral surfaces (Linear fog/platinum family) */
     --secondary: 220 23% 96.5%;
@@ -44,13 +44,13 @@
     --destructive-foreground: 0 0% 100%;
     --success: 158 64% 38%;
     --warning: 32 90% 48%;
-    --info: 234 56% 60%;
+    --info: 0 72% 51%;
 
     /* Lines & focus */
     --border: 216 20% 91%;             /* hairline */
     --border-strong: 216 18% 84%;
     --input: 216 20% 89%;
-    --ring: 234 56% 60%;
+    --ring: 0 72% 51%;
 
     --radius: 0.625rem;                /* 10px — Linear/Stripe hybrid */
   }
@@ -85,7 +85,7 @@
 
   /* Selection — indigo wash */
   ::selection {
-    background: hsl(234 56% 60% / 0.18);
+    background: hsl(0 72% 51% / 0.16);
   }
 
   /* Refined scrollbars */
@@ -129,7 +129,7 @@
     border: 1px solid hsl(0 0% 100% / 0.55);
     box-shadow:
       inset 0 1px 0 hsl(0 0% 100% / 0.65),
-      0 8px 24px -12px hsl(234 45% 30% / 0.18);
+      0 8px 24px -12px hsl(0 45% 30% / 0.18);
   }
   .glass-strong {
     background-color: hsl(0 0% 100% / 0.78);
@@ -138,14 +138,14 @@
     border: 1px solid hsl(0 0% 100% / 0.6);
     box-shadow:
       inset 0 1px 0 hsl(0 0% 100% / 0.7),
-      0 12px 32px -14px hsl(234 45% 30% / 0.22);
+      0 12px 32px -14px hsl(0 45% 30% / 0.22);
   }
   /* Soft colored backdrop so the frosted glass actually reads on a light canvas */
   .aurora {
     background-image:
-      radial-gradient(42rem 42rem at 10% -10%, hsl(234 90% 68% / 0.16), transparent 60%),
-      radial-gradient(38rem 38rem at 100% 0%, hsl(264 90% 70% / 0.13), transparent 55%),
-      radial-gradient(34rem 34rem at 60% 120%, hsl(200 95% 65% / 0.12), transparent 60%);
+      radial-gradient(42rem 42rem at 10% -10%, hsl(0 90% 70% / 0.16), transparent 60%),
+      radial-gradient(38rem 38rem at 100% 0%, hsl(350 90% 72% / 0.13), transparent 55%),
+      radial-gradient(34rem 34rem at 60% 120%, hsl(14 95% 66% / 0.12), transparent 60%);
   }
 }
 

@@ -380,7 +380,7 @@ export default function WarehouseMapping() {
       {/* ───────────────────────── Header ───────────────────────── */}
       <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border bg-background/55 px-8 py-3.5 backdrop-blur-xl backdrop-saturate-150">
         <div className="mr-auto flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#7B61FF] text-white shadow-sm shadow-primary/30">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#FF5A5F] text-white shadow-sm shadow-primary/30">
             <WarehouseIcon className="h-[18px] w-[18px]" />
           </span>
           <div>
@@ -466,7 +466,7 @@ export default function WarehouseMapping() {
                 className={cn(
                   "rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-all",
                   w.id === selectedWhId
-                    ? "bg-gradient-to-r from-primary to-[#7B61FF] text-white shadow-sm shadow-primary/30"
+                    ? "bg-gradient-to-r from-primary to-[#FF5A5F] text-white shadow-sm shadow-primary/30"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
@@ -557,7 +557,7 @@ export default function WarehouseMapping() {
                                         <button
                                           key={shelf.id}
                                           onClick={() => selectShelf(shelf.id)}
-                                          style={!isSel && qty > 0 ? { backgroundColor: `hsl(234 56% 60% / ${0.05 + (occ.pct / 100) * 0.16})` } : undefined}
+                                          style={!isSel && qty > 0 ? { backgroundColor: `hsl(0 72% 51% / ${0.05 + (occ.pct / 100) * 0.16})` } : undefined}
                                           className={cn(
                                             "group relative rounded-xl border p-3.5 text-left transition-all duration-150 hover:-translate-y-0.5",
                                             isSel
@@ -720,7 +720,7 @@ export default function WarehouseMapping() {
 
               {/* Actions */}
               <div className="mt-6 grid grid-cols-2 gap-2.5">
-                <Button size="sm" className="bg-gradient-to-r from-primary to-[#7B61FF] hover:opacity-95" onClick={() => { setShowAllocateForm((v) => !v); setShowTransferForm(false); }}>
+                <Button size="sm" className="bg-gradient-to-r from-primary to-[#FF5A5F] hover:opacity-95" onClick={() => { setShowAllocateForm((v) => !v); setShowTransferForm(false); }}>
                   <ArrowDownToLine className="h-4 w-4" /> Allocate
                 </Button>
                 <Button
@@ -878,7 +878,7 @@ function MetricCard({
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-lg",
-            accent ? "bg-gradient-to-br from-primary to-[#7B61FF] text-white" : "bg-primary-wash text-primary"
+            accent ? "bg-gradient-to-br from-primary to-[#FF5A5F] text-white" : "bg-primary-wash text-primary"
           )}
         >
           <Icon className="h-4 w-4" />
@@ -888,7 +888,7 @@ function MetricCard({
       <div className="tnum mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</div>
       {pct !== undefined ? (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-gradient-to-r from-primary to-[#7B61FF]" style={{ width: `${pct}%` }} />
+          <div className="h-full rounded-full bg-gradient-to-r from-primary to-[#FF5A5F]" style={{ width: `${pct}%` }} />
         </div>
       ) : (
         sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
@@ -906,8 +906,8 @@ function Gauge({ pct, warn }: { pct: number; warn?: boolean }) {
       <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
         <defs>
           <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={warn ? "#f59e0b" : "hsl(234 56% 60%)"} />
-            <stop offset="100%" stopColor={warn ? "#f97316" : "#7B61FF"} />
+            <stop offset="0%" stopColor={warn ? "#f59e0b" : "hsl(0 72% 51%)"} />
+            <stop offset="100%" stopColor={warn ? "#f97316" : "#FF5A5F"} />
           </linearGradient>
         </defs>
         <circle cx="38" cy="38" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="7" />

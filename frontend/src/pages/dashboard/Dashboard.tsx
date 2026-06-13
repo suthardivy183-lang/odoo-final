@@ -575,10 +575,10 @@ export default function Dashboard() {
                     <span className="pb-2 text-2xl font-semibold text-slate-400">/100</span>
                   </div>
                 </div>
-                <Gauge className="h-8 w-8 text-indigo-300" />
+                <Gauge className="h-8 w-8 text-red-300" />
               </div>
               <div className="mt-6 h-2 rounded-full bg-white/15">
-                <div className="h-2 rounded-full bg-indigo-400" style={{ width: `${healthScore}%` }} />
+                <div className="h-2 rounded-full bg-red-400" style={{ width: `${healthScore}%` }} />
               </div>
               <div className={cn("mt-5 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-bold ring-1", status.className)}>
                 <ShieldCheck className="h-4 w-4" />
