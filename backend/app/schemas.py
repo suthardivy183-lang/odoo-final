@@ -270,6 +270,25 @@ class AuditLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ActivityChange(BaseModel):
+    label: str
+    before: Optional[str] = None
+    after: Optional[str] = None
+
+
+class ActivityEvent(BaseModel):
+    id: int
+    timestamp: datetime
+    user: str
+    headline: str
+    entity_type: str
+    entity_name: str
+    action: str
+    changes: List[ActivityChange]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Insights Schemas
 class InsightItem(BaseModel):
     severity: str

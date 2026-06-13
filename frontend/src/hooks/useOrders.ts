@@ -5,7 +5,7 @@ import type {
   PurchaseOrder,
   ManufacturingOrder,
   BillOfMaterials,
-  AuditLog,
+  ActivityEvent,
   DashboardStats,
   InsightsResponse,
 } from "@/lib/types";
@@ -109,11 +109,25 @@ export function useBomActions() {
   };
 }
 
-/* ── Audit + Dashboard ─────────────────────────────────────────────────── */
-export function useAuditLogs(filters: { table_name?: string; action?: string } = {}) {
+/* ── Activity Timeline ─────────────────────────────────────────────────── */
+export interface ActivityFilters {
+  entity_type?: string;
+  username?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export function useActivityTimeline(filters: ActivityFilters = {}) {
   return useQuery({
-    queryKey: ["audit-logs", filters],
-    queryFn: async () => (await api.get<AuditLog[]>("/audit-logs", { params: filters })).data,
+    queryKey: ["activity-timeline", filters],
+    queryFn: async () => (await api.get<ActivityEvent[]>("/audit-logs", { params: filters })).data,
+  });
+}
+
+export function useActivityUsers() {
+  return useQuery({
+    queryKey: ["activity-users"],
+    queryFn: async () => (await api.get<string[]>("/audit-logs/users")).data,
   });
 }
 export function useDashboard() {

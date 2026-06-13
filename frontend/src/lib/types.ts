@@ -121,6 +121,24 @@ export interface ManufacturingOrder {
   product?: Product;
 }
 
+export interface ActivityChange {
+  label: string;
+  before: string | null;
+  after: string | null;
+}
+
+export interface ActivityEvent {
+  id: number;
+  timestamp: string;
+  user: string;
+  headline: string;
+  entity_type: string;
+  entity_name: string;
+  action: string;
+  changes: ActivityChange[];
+}
+
+/** @deprecated Raw audit log — API now returns ActivityEvent */
 export interface AuditLog {
   id: number;
   timestamp: string;

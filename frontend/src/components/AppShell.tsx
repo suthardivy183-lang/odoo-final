@@ -20,7 +20,7 @@ const NAV = [
   { to: "/purchase", label: "Purchase Orders", icon: Truck },
   { to: "/manufacturing", label: "Manufacturing", icon: Factory },
   { to: "/bom", label: "Bill of Materials", icon: Layers },
-  { to: "/audit-logs", label: "Audit Logs", icon: ScrollText, adminOnly: true },
+  { to: "/audit-logs", label: "Activity Timeline", icon: ScrollText, adminOnly: true },
 ];
 
 export function AppShell() {
