@@ -167,8 +167,8 @@ def run_tests():
     if so_deliver.status_code != 200:
         print("[FAIL] Sales Order delivery failed:", so_deliver.text)
         sys.exit(1)
-    assert so_deliver.json()["status"] == "Completed"
-    print("[PASS] Sales Order delivered and set to 'Completed'.")
+    assert so_deliver.json()["status"] == "Fully Delivered"
+    print("[PASS] Sales Order delivered and set to 'Fully Delivered'.")
 
     # Verify FG001 Tables stock is decremented and reservation is released (on_hand=0, reserved=0)
     fg_resp = client.get(f"/api/products/{fg001['id']}", headers=headers)

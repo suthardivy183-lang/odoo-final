@@ -29,7 +29,7 @@ def get_dashboard_stats(
     # Sales Orders
     so_draft = db.query(SalesOrder).filter(SalesOrder.status == "Draft").count()
     so_confirmed = db.query(SalesOrder).filter(SalesOrder.status == "Confirmed").count()
-    so_completed = db.query(SalesOrder).filter(SalesOrder.status == "Completed").count()
+    so_completed = db.query(SalesOrder).filter(SalesOrder.status.in_(["Completed", "Fully Delivered"])).count()
     
     # Purchase Orders
     po_draft = db.query(PurchaseOrder).filter(PurchaseOrder.status == "Draft").count()

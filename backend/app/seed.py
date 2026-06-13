@@ -1,5 +1,10 @@
 from backend.app.database import engine, Base, SessionLocal
-from backend.app.models import User, Product, BoM, BoMComponent, BoMOperation
+from backend.app.models import (
+    User, Product, BoM, BoMComponent, BoMOperation,
+    SalesOrder, SalesOrderLine, PurchaseOrder, PurchaseOrderLine,
+    ManufacturingOrder, ManufacturingOrderComponent, ManufacturingOrderOperation,
+    AuditLog
+)
 from backend.app.auth import get_password_hash
 from backend.app.utils.context import current_username
 

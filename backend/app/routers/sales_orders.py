@@ -85,19 +85,93 @@ def update_sales_order(
             detail=f"Sales Order with ID {so_id} not found"
         )
     
-    if so.status != "Draft":
+    if so.status == "Draft":
+        if so_in.lines is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Line updates are not supported in 'Draft' status via PUT."
+            )
+        
+        update_data = so_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(so, field, value)
+            
+        db.commit()
+        db.refresh(so)
+        return so
+        
+    elif so.status == "Partially Delivered":
+        # Check if customer_name or status is being modified to a different value
+        if so_in.customer_name is not None and so_in.customer_name != so.customer_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only Delivered Qty is editable when 'Partially Delivered'."
+            )
+        if so_in.status is not None and so_in.status != so.status:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only Delivered Qty is editable when 'Partially Delivered'."
+            )
+            
+        if so_in.lines:
+            for line_update in so_in.lines:
+                # Find the corresponding SalesOrderLine
+                line = db.query(SalesOrderLine).filter(
+                    SalesOrderLine.sales_order_id == so.id,
+                    SalesOrderLine.id == line_update.id
+                ).first()
+                
+                if not line:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Sales Order Line with ID {line_update.id} not found."
+                    )
+                
+                if line_update.delivered_qty < 0 or line_update.delivered_qty > line.quantity:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Delivered quantity must be between 0 and the ordered quantity ({line.quantity})."
+                    )
+                    
+                product = db.query(Product).filter(Product.id == line.product_id).first()
+                if not product:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Product not found for line ID {line.id}."
+                    )
+                    
+                diff = line_update.delivered_qty - line.delivered_qty
+                if diff > 0:
+                    if product.on_hand_qty < diff:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Insufficient stock on hand for product '{product.sku}' to deliver {diff} more units."
+                        )
+                    product.on_hand_qty -= diff
+                    product.reserved_qty -= diff
+                elif diff < 0:
+                    product.on_hand_qty += abs(diff)
+                    product.reserved_qty += abs(diff)
+                    
+                line.delivered_qty = line_update.delivered_qty
+                db.flush()
+                
+            # Recalculate status based on all lines
+            if all(l.delivered_qty == l.quantity for l in so.lines):
+                so.status = "Fully Delivered"
+            else:
+                so.status = "Partially Delivered"
+                
+            db.commit()
+            db.refresh(so)
+            return so
+        else:
+            return so
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only update Sales Orders in 'Draft' status"
+            detail=f"Cannot update Sales Order in status '{so.status}'"
         )
-        
-    update_data = so_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(so, field, value)
-        
-    db.commit()
-    db.refresh(so)
-    return so
 
 @router.delete("/{so_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_sales_order(
@@ -143,13 +217,11 @@ def confirm_sales_order(
     # 1. Trigger auto procurement
     # 2. Reserve quantities
     for line in so.lines:
-
         product = db.query(Product).filter(Product.id == line.product_id).first()
         if product:
             trigger_procurement_for_product(db, product.id, line.quantity)
             product.reserved_qty += line.quantity
             db.flush()
-
             
     db.commit()
     db.refresh(so)
@@ -168,31 +240,40 @@ def deliver_sales_order(
             detail=f"Sales Order with ID {so_id} not found"
         )
         
-    if so.status != "Confirmed":
+    if so.status not in ["Confirmed", "Partially Delivered"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only deliver 'Confirmed' Sales Orders"
+            detail="Can only deliver 'Confirmed' or 'Partially Delivered' Sales Orders"
         )
         
-    # Check if stock is available
-    for line in so.lines:
-        product = db.query(Product).filter(Product.id == line.product_id).first()
-        if not product or product.on_hand_qty < line.quantity:
-            product_sku = product.sku if product else f"ID {line.product_id}"
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient stock on hand for product '{product_sku}' to complete delivery."
-            )
-            
-    so.status = "Completed"
+    any_delivered = False
     
-    # Decrement on hand and reserved stock
+    # Process each line and deliver as much as possible
     for line in so.lines:
         product = db.query(Product).filter(Product.id == line.product_id).first()
         if product:
-            product.on_hand_qty -= line.quantity
-            product.reserved_qty -= line.quantity
-            
+            remaining = line.quantity - line.delivered_qty
+            if remaining > 0:
+                deliverable = min(remaining, product.on_hand_qty)
+                if deliverable > 0:
+                    line.delivered_qty += deliverable
+                    product.on_hand_qty -= deliverable
+                    product.reserved_qty -= deliverable
+                    any_delivered = True
+                    db.flush()
+                    
+    if not any_delivered:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Insufficient stock on hand to perform any delivery."
+        )
+        
+    # Check if fully delivered
+    if all(line.delivered_qty == line.quantity for line in so.lines):
+        so.status = "Fully Delivered"
+    else:
+        so.status = "Partially Delivered"
+        
     db.commit()
     db.refresh(so)
     return so
@@ -210,10 +291,10 @@ def cancel_sales_order(
             detail=f"Sales Order with ID {so_id} not found"
         )
         
-    if so.status == "Completed":
+    if so.status in ["Completed", "Fully Delivered"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot cancel a completed Sales Order"
+            detail="Cannot cancel a completed or fully delivered Sales Order"
         )
     if so.status == "Cancelled":
         raise HTTPException(
@@ -224,13 +305,15 @@ def cancel_sales_order(
     prev_status = so.status
     so.status = "Cancelled"
     
-    # Release reservation if it was confirmed
-    if prev_status == "Confirmed":
+    # Release remaining reservation if it was confirmed or partially delivered
+    if prev_status in ["Confirmed", "Partially Delivered"]:
         for line in so.lines:
             product = db.query(Product).filter(Product.id == line.product_id).first()
             if product:
-                product.reserved_qty -= line.quantity
-                
+                remaining = line.quantity - line.delivered_qty
+                if remaining > 0:
+                    product.reserved_qty -= remaining
+                    
     db.commit()
     db.refresh(so)
     return so

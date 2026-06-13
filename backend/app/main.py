@@ -22,16 +22,11 @@ async def add_current_user_to_context(request: Request, call_next):
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload.get("id")
             username = payload.get("sub")
-            print(f"[MIDDLEWARE DEBUG] Decoded token: user_id={user_id}, username={username}")
-        except JWTError as e:
-            print(f"[MIDDLEWARE DEBUG] JWT decode error: {e}")
+        except JWTError:
             pass
-    else:
-        print(f"[MIDDLEWARE DEBUG] No Bearer token found in header: {auth_header}")
 
     token_uid = current_user_id.set(user_id)
     token_uname = current_username.set(username)
-    print(f"[MIDDLEWARE DEBUG] Set ContextVars: current_user_id={user_id}, current_username={username}")
     try:
         response = await call_next(request)
         return response
