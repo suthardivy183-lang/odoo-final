@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { homePath } from "@/lib/permissions";
+import Landing from "@/pages/landing/Landing";
 import Login from "@/pages/Login";
 import Unauthorized from "@/pages/Unauthorized";
 import Dashboard from "@/pages/dashboard/Dashboard";
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route path="/landing" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route element={<ProtectedRoute />}>
