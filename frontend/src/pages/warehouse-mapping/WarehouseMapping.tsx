@@ -16,6 +16,10 @@ import {
   SlidersHorizontal,
   Boxes,
   CornerDownLeft,
+  Activity,
+  Layers,
+  TrendingUp,
+  Warehouse as WarehouseIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,6 +269,11 @@ export default function WarehouseMapping() {
     return { occupied, pct: Math.round((occupied / whShelves.length) * 100) };
   }, [whShelves, shelfQty]);
 
+  const whUnits = React.useMemo(
+    () => whShelves.reduce((sum, sh) => sum + shelfQty(sh.id), 0),
+    [whShelves, shelfQty]
+  );
+
   const filteredActivities = React.useMemo(() => {
     if (!activities) return [];
     if (!selectedShelfId) return activities.slice(0, 8);
@@ -370,9 +379,14 @@ export default function WarehouseMapping() {
     <div className="flex h-screen flex-col bg-canvas">
       {/* ───────────────────────── Header ───────────────────────── */}
       <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border bg-canvas/85 px-8 py-3.5 backdrop-blur-md">
-        <div className="mr-auto">
-          <h1 className="text-[17px] font-semibold tracking-tight text-foreground">Warehouse</h1>
-          <p className="text-[13px] text-muted-foreground">Find inventory, inspect locations, and move stock</p>
+        <div className="mr-auto flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#7B61FF] text-white shadow-sm shadow-primary/30">
+            <WarehouseIcon className="h-[18px] w-[18px]" />
+          </span>
+          <div>
+            <h1 className="text-[17px] font-semibold tracking-tight text-foreground">Warehouse</h1>
+            <p className="text-[13px] text-muted-foreground">Find inventory, inspect locations, and move stock</p>
+          </div>
         </div>
 
         {/* Discovery search — primary workflow */}
@@ -443,46 +457,41 @@ export default function WarehouseMapping() {
       <div className="flex min-h-0 flex-1">
         {/* MAP — the hero */}
         <main className="min-w-0 flex-1 overflow-y-auto px-8 py-6">
-          {/* Warehouse switcher + utilization */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {warehouses?.map((w) => (
-                <button
-                  key={w.id}
-                  onClick={() => { setSelectedWhId(w.id); setSelectedShelfId(undefined); }}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
-                    w.id === selectedWhId
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  {w.name}
-                </button>
-              ))}
-              {editMode && (
-                <button
-                  onClick={() => { setWhName(""); setWhLoc(""); setWhModal({ mode: "create" }); }}
-                  className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Warehouse
-                </button>
-              )}
-            </div>
-
-            {activeWh && whShelves.length > 0 && (
-              <div className="flex items-center gap-5 text-[13px]">
-                <Stat label="Shelves" value={whShelves.length} />
-                <Stat label="Occupied" value={whUtilization.occupied} />
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${whUtilization.pct}%` }} />
-                  </div>
-                  <span className="tnum font-medium text-foreground">{whUtilization.pct}%</span>
-                </div>
-              </div>
+          {/* Warehouse switcher */}
+          <div className="mb-5 flex flex-wrap items-center gap-1.5">
+            {warehouses?.map((w) => (
+              <button
+                key={w.id}
+                onClick={() => { setSelectedWhId(w.id); setSelectedShelfId(undefined); }}
+                className={cn(
+                  "rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-all",
+                  w.id === selectedWhId
+                    ? "bg-gradient-to-r from-primary to-[#7B61FF] text-white shadow-sm shadow-primary/30"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                {w.name}
+              </button>
+            ))}
+            {editMode && (
+              <button
+                onClick={() => { setWhName(""); setWhLoc(""); setWhModal({ mode: "create" }); }}
+                className="flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" /> Warehouse
+              </button>
             )}
           </div>
+
+          {/* Metrics hero band */}
+          {activeWh && (
+            <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <MetricCard icon={Boxes} label="Units stored" value={whUnits.toLocaleString()} />
+              <MetricCard icon={Layers} label="Shelves" value={whShelves.length} sub={`${whUtilization.occupied} occupied`} />
+              <MetricCard icon={TrendingUp} label="Utilization" value={`${whUtilization.pct}%`} accent pct={whUtilization.pct} />
+              <MetricCard icon={Activity} label="Movements" value={activities?.length ?? 0} />
+            </div>
+          )}
 
           {/* Map surface */}
           <div className="rounded-xl border border-border bg-background shadow-sm">
@@ -548,24 +557,25 @@ export default function WarehouseMapping() {
                                         <button
                                           key={shelf.id}
                                           onClick={() => selectShelf(shelf.id)}
+                                          style={!isSel && qty > 0 ? { backgroundColor: `hsl(234 56% 60% / ${0.05 + (occ.pct / 100) * 0.16})` } : undefined}
                                           className={cn(
-                                            "group relative rounded-lg border p-3 text-left transition-all",
+                                            "group relative rounded-xl border p-3.5 text-left transition-all duration-150 hover:-translate-y-0.5",
                                             isSel
-                                              ? "border-primary bg-primary-wash shadow-sm ring-1 ring-primary/30"
+                                              ? "border-primary bg-primary-wash shadow-md ring-2 ring-primary/25"
                                               : qty > 0
-                                                ? "border-border bg-card hover:border-border-strong hover:shadow-sm"
+                                                ? "border-primary/15 hover:border-primary/40 hover:shadow-md"
                                                 : "border-dashed border-border bg-card hover:border-border-strong"
                                           )}
                                         >
                                           <div className="flex items-center justify-between">
-                                            <span className="text-[13px] font-medium text-foreground">{shelf.name}</span>
-                                            <span className={cn("h-1.5 w-1.5 rounded-full", occ.dot)} />
+                                            <span className="text-sm font-semibold text-foreground">{shelf.name}</span>
+                                            <span className={cn("h-2 w-2 rounded-full ring-2 ring-background", occ.dot)} />
                                           </div>
-                                          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-                                            <div className={cn("h-full rounded-full", occ.bar)} style={{ width: `${Math.max(occ.pct, qty > 0 ? 6 : 0)}%` }} />
+                                          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                                            <div className={cn("h-full rounded-full", occ.bar)} style={{ width: `${Math.max(occ.pct, qty > 0 ? 8 : 0)}%` }} />
                                           </div>
-                                          <div className="mt-1.5 flex items-center justify-between">
-                                            <span className="tnum text-[11px] text-muted-foreground">{qty > 0 ? `${qty} units` : "Empty"}</span>
+                                          <div className="mt-2 flex items-center justify-between">
+                                            <span className="tnum text-[11px] font-medium text-muted-foreground">{qty > 0 ? `${qty} units` : "Empty"}</span>
                                             {editMode && (
                                               <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                                                 <IconAction as="span" title="Rename shelf" onClick={(e) => { e.stopPropagation(); setShelfName(shelf.name); setShelfModal({ mode: "edit", rack_id: shelf.rack_id, data: shelf }); }}><Pencil className="h-2.5 w-2.5" /></IconAction>
@@ -674,14 +684,15 @@ export default function WarehouseMapping() {
                 <button onClick={() => setSelectedShelfId(undefined)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
               </div>
 
-              {/* Occupancy */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-muted-foreground">Occupancy</span>
-                  <span className="tnum font-medium text-foreground">{activeShelfQty} / {MAX_CAPACITY} units</span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                  <div className={cn("h-full rounded-full transition-all", activeOcc.bar)} style={{ width: `${activeOcc.pct}%` }} />
+              {/* Occupancy gauge */}
+              <div className="mt-5 flex items-center gap-5 rounded-xl border border-border bg-gradient-to-br from-muted/50 to-transparent p-4">
+                <Gauge pct={activeOcc.pct} warn={activeOcc.pct >= 80} />
+                <div>
+                  <div className="tnum text-2xl font-semibold tracking-tight text-foreground">
+                    {activeShelfQty}
+                    <span className="text-base font-normal text-muted-foreground"> / {MAX_CAPACITY}</span>
+                  </div>
+                  <div className="text-[13px] text-muted-foreground">units stored</div>
                 </div>
               </div>
 
@@ -709,7 +720,7 @@ export default function WarehouseMapping() {
 
               {/* Actions */}
               <div className="mt-6 grid grid-cols-2 gap-2.5">
-                <Button size="sm" onClick={() => { setShowAllocateForm((v) => !v); setShowTransferForm(false); }}>
+                <Button size="sm" className="bg-gradient-to-r from-primary to-[#7B61FF] hover:opacity-95" onClick={() => { setShowAllocateForm((v) => !v); setShowTransferForm(false); }}>
                   <ArrowDownToLine className="h-4 w-4" /> Allocate
                 </Button>
                 <Button
@@ -846,11 +857,75 @@ export default function WarehouseMapping() {
 
 /* ───────────────────────── small presentational helpers ───────────────────────── */
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
+  pct,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+  sub?: string;
+  accent?: boolean;
+  pct?: number;
+}) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="tnum font-semibold text-foreground">{value}</span>
-      <span className="text-muted-foreground">{label}</span>
+    <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-lg",
+            accent ? "bg-gradient-to-br from-primary to-[#7B61FF] text-white" : "bg-primary-wash text-primary"
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      </div>
+      <div className="tnum mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</div>
+      {pct !== undefined ? (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-gradient-to-r from-primary to-[#7B61FF]" style={{ width: `${pct}%` }} />
+        </div>
+      ) : (
+        sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
+      )}
+    </div>
+  );
+}
+
+function Gauge({ pct, warn }: { pct: number; warn?: boolean }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const dash = (Math.min(pct, 100) / 100) * c;
+  return (
+    <div className="relative h-[76px] w-[76px] shrink-0">
+      <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={warn ? "#f59e0b" : "hsl(234 56% 60%)"} />
+            <stop offset="100%" stopColor={warn ? "#f97316" : "#7B61FF"} />
+          </linearGradient>
+        </defs>
+        <circle cx="38" cy="38" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="7" />
+        <circle
+          cx="38"
+          cy="38"
+          r={r}
+          fill="none"
+          stroke="url(#gaugeGrad)"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c}`}
+          className="transition-all duration-500"
+        />
+      </svg>
+      <div className="tnum absolute inset-0 flex items-center justify-center text-sm font-semibold text-foreground">
+        {pct}%
+      </div>
     </div>
   );
 }
