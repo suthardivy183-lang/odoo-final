@@ -10,6 +10,7 @@ import {
   LogOut,
   Warehouse,
   Boxes,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -34,6 +35,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/purchase", label: "Purchase Orders", icon: Truck },
       { to: "/manufacturing", label: "Manufacturing", icon: Factory },
       { to: "/warehouse-mapping", label: "Warehouse Mapping", icon: Warehouse },
+      { to: "/digital-twin", label: "Digital Twin", icon: Network },
     ],
   },
   {

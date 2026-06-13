@@ -7,6 +7,7 @@ import type { Role } from "@/lib/types";
  */
 export const ROUTE_ROLES: Record<string, Role[]> = {
   "/dashboard": ["admin", "business_owner"],
+  "/digital-twin": ["admin", "business_owner"],
   "/products": ["admin", "inventory_manager"],
   "/warehouse-mapping": ["admin", "inventory_manager"],
   "/sales": ["admin", "sales"],

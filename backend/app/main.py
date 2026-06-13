@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from backend.app.config import settings
 from backend.app.utils.context import current_user_id, current_username
 from backend.app.permissions import require_module
-from backend.app.routers import auth, products, sales_orders, purchase_orders, bom, manufacturing, audit_logs, dashboard, insights, warehouse_mapping
+from backend.app.routers import auth, products, sales_orders, purchase_orders, bom, manufacturing, audit_logs, dashboard, insights, warehouse_mapping, digital_twin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -58,6 +58,7 @@ app.include_router(audit_logs.router, dependencies=[Depends(require_module("audi
 app.include_router(dashboard.router, dependencies=[Depends(require_module("dashboard"))])
 app.include_router(insights.router, dependencies=[Depends(require_module("dashboard"))])
 app.include_router(warehouse_mapping.router, dependencies=[Depends(require_module("inventory", read_all=True))])
+app.include_router(digital_twin.router, dependencies=[Depends(require_module("dashboard"))])
 
 @app.get("/")
 def read_root():

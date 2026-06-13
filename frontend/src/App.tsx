@@ -8,6 +8,7 @@ import Unauthorized from "@/pages/Unauthorized";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Products from "@/pages/products/Products";
 import WarehouseMapping from "@/pages/warehouse-mapping/WarehouseMapping";
+import DigitalTwin from "@/pages/digital-twin/DigitalTwin";
 import Sales from "@/pages/sales/Sales";
 import Purchase from "@/pages/purchase/Purchase";
 import Manufacturing from "@/pages/manufacturing/Manufacturing";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
             <Route path="/warehouse-mapping" element={<WarehouseMapping />} />
+            <Route path="/digital-twin" element={<DigitalTwin />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/purchase" element={<Purchase />} />
             <Route path="/manufacturing" element={<Manufacturing />} />
