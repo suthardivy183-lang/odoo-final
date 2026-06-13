@@ -9,7 +9,7 @@ import Sales from "@/pages/sales/Sales";
 import Purchase from "@/pages/purchase/Purchase";
 import Manufacturing from "@/pages/manufacturing/Manufacturing";
 import Bom from "@/pages/bom/Bom";
-import AuditLogs from "@/pages/audit-logs/AuditLogs";
+import ActivityTimeline from "@/pages/audit-logs/AuditLogs";
 
 export default function App() {
   return (
@@ -25,7 +25,7 @@ export default function App() {
             <Route path="/purchase" element={<Purchase />} />
             <Route path="/manufacturing" element={<Manufacturing />} />
             <Route path="/bom" element={<Bom />} />
-            <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/audit-logs" element={<ActivityTimeline />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

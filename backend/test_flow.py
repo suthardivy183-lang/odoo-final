@@ -193,7 +193,7 @@ def run_tests():
     logs = audit_resp.json()
     assert len(logs) > 0
     # Ensure admin user operations are recorded in logs
-    admin_logs = [log for log in logs if log["username"] == "admin"]
+    admin_logs = [log for log in logs if log.get("user", "").lower() == "admin"]
     assert len(admin_logs) > 0
     print(f"[PASS] Successfully verified that {len(admin_logs)} database actions were audited under username 'admin'.")
 
