@@ -1,17 +1,35 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/lib/auth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppShell } from "@/components/AppShell";
+import Login from "@/pages/Login";
+import Dashboard from "@/pages/dashboard/Dashboard";
+import Products from "@/pages/products/Products";
+import Sales from "@/pages/sales/Sales";
+import Purchase from "@/pages/purchase/Purchase";
+import Manufacturing from "@/pages/manufacturing/Manufacturing";
+import Bom from "@/pages/bom/Bom";
+import AuditLogs from "@/pages/audit-logs/AuditLogs";
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={<div className="flex items-center justify-center h-screen text-2xl font-bold">Login — Coming Soon</div>} />
-      <Route path="/dashboard" element={<div className="p-8 text-2xl font-bold">Dashboard — Coming Soon</div>} />
-      <Route path="/products/*" element={<div className="p-8">Products — Coming Soon</div>} />
-      <Route path="/sales/*" element={<div className="p-8">Sales Orders — Coming Soon</div>} />
-      <Route path="/purchase/*" element={<div className="p-8">Purchase Orders — Coming Soon</div>} />
-      <Route path="/manufacturing/*" element={<div className="p-8">Manufacturing — Coming Soon</div>} />
-      <Route path="/bom/*" element={<div className="p-8">Bill of Materials — Coming Soon</div>} />
-      <Route path="/audit-logs" element={<div className="p-8">Audit Logs — Coming Soon</div>} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/sales" element={<Sales />} />
+            <Route path="/purchase" element={<Purchase />} />
+            <Route path="/manufacturing" element={<Manufacturing />} />
+            <Route path="/bom" element={<Bom />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }

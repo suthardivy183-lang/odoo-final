@@ -1,0 +1,68 @@
+import * as React from "react";
+import { Plus, Trash2, Pencil } from "lucide-react";
+import { PageHeader } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { useBoms, useBomActions } from "@/hooks/useOrders";
+import { useProducts } from "@/hooks/useProducts";
+import type { BillOfMaterials } from "@/lib/types";
+import { BomForm } from "./BomForm";
+
+export default function Bom() {
+  const { data: boms, isLoading } = useBoms();
+  const { data: products } = useProducts();
+  const { remove } = useBomActions();
+  const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState<BillOfMaterials | null>(null);
+
+  const productName = (id: number) => products?.find((p) => p.id === id)?.name ?? `#${id}`;
+
+  return (
+    <div>
+      <PageHeader
+        title="Bill of Materials"
+        description="Component recipes used by manufacturing orders"
+        action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New BoM</Button>}
+      />
+      <div className="p-8">
+        <div className="rounded-lg border bg-background">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>BoM Name</TableHead>
+                <TableHead>Produces</TableHead>
+                <TableHead className="text-right">Qty</TableHead>
+                <TableHead>Components</TableHead>
+                <TableHead className="w-24"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
+              {boms?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No BoMs</TableCell></TableRow>}
+              {boms?.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell className="font-medium">{b.name}</TableCell>
+                  <TableCell>{productName(b.product_id)}</TableCell>
+                  <TableCell className="text-right">{Number(b.qty_produced)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {b.components.map((c) => `${Number(c.qty)}× ${productName(c.product_id)}`).join(", ")}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setEditing(b)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Delete ${b.name}?`)) remove.mutate(b.id); }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {(creating || editing) && <BomForm bom={editing} onClose={() => { setCreating(false); setEditing(null); }} />}
+    </div>
+  );
+}
