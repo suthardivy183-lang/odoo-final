@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "AI Ops Center", icon: LayoutDashboard },
   { to: "/products", label: "Products", icon: Package },
   { to: "/sales", label: "Sales Orders", icon: ShoppingCart },
   { to: "/purchase", label: "Purchase Orders", icon: Truck },
