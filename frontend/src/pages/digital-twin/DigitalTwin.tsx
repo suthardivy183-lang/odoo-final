@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RefreshCw, X, AlertCircle, Info, HelpCircle } from "lucide-react";
+import { Play, RefreshCw, X, AlertCircle, Info, HelpCircle, Plus, Minus, Maximize2 } from "lucide-react";
 
 interface GraphNode {
   id: string;
@@ -47,11 +47,22 @@ export default function DigitalTwin() {
   const [summary, setSummary] = React.useState<GraphData["summary"] | null>(null);
   const [selectedNode, setSelectedNode] = React.useState<GraphNode | null>(null);
 
+  // Find all available finished goods from raw graph data
+  const finishedGoods = React.useMemo(() => {
+    if (!rawData) return [];
+    return rawData.nodes.filter(
+      (node) =>
+        node.type === "product" &&
+        node.details?.category === "Finished Good"
+    );
+  }, [rawData]);
+
   // Zoom and Pan state
   const [scale, setScale] = React.useState<number>(0.7);
   const [offset, setOffset] = React.useState<{ x: number; y: number }>({ x: 80, y: 40 });
   const [isDragging, setIsDragging] = React.useState<boolean>(false);
   const dragStart = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasDragged = React.useRef<boolean>(false);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
 
   // Simulation Center state
@@ -138,15 +149,18 @@ export default function DigitalTwin() {
 
   // Zoom and Pan Handlers
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    // Only drag when clicking the background grid or the SVG canvas itself
-    if (e.target === svgRef.current || (e.target as SVGElement).classList.contains("svg-bg")) {
-      setIsDragging(true);
-      dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
-    }
+    setIsDragging(true);
+    hasDragged.current = false;
+    dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (isDragging) {
+      const dx = Math.abs(e.clientX - (dragStart.current.x + offset.x));
+      const dy = Math.abs(e.clientY - (dragStart.current.y + offset.y));
+      if (dx > 3 || dy > 3) {
+        hasDragged.current = true;
+      }
       setOffset({
         x: e.clientX - dragStart.current.x,
         y: e.clientY - dragStart.current.y,
@@ -158,6 +172,24 @@ export default function DigitalTwin() {
     setIsDragging(false);
   };
 
+  // Helper to zoom centered at a specific SVG container point (x, y)
+  const zoomAtPoint = React.useCallback((x: number, y: number, factor: number) => {
+    setScale((prevScale) => {
+      const newScale = Math.max(0.15, Math.min(prevScale * factor, 4));
+      if (newScale === prevScale) return prevScale;
+
+      setOffset((prevOffset) => {
+        const xs = (x - prevOffset.x) / prevScale;
+        const ys = (y - prevOffset.y) / prevScale;
+        return {
+          x: x - xs * newScale,
+          y: y - ys * newScale,
+        };
+      });
+      return newScale;
+    });
+  }, []);
+
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
     if (!svgRef.current) return;
@@ -166,21 +198,86 @@ export default function DigitalTwin() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const zoomFactor = 1.1;
-    const newScale = e.deltaY < 0 ? scale * zoomFactor : scale / zoomFactor;
-    
-    // Bounds check
-    if (newScale < 0.1 || newScale > 4) return;
-
-    const xs = (mouseX - offset.x) / scale;
-    const ys = (mouseY - offset.y) / scale;
-
-    setOffset({
-      x: mouseX - xs * newScale,
-      y: mouseY - ys * newScale,
-    });
-    setScale(newScale);
+    // Smooth exponential zoom based on deltaY (prevents wild zooming on trackpads and mice)
+    const factor = Math.max(0.8, Math.min(1.2, Math.exp(-e.deltaY * 0.001)));
+    zoomAtPoint(mouseX, mouseY, factor);
   };
+
+  const handleZoomIn = () => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    zoomAtPoint(centerX, centerY, 1.15);
+  };
+
+  const handleZoomOut = () => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    zoomAtPoint(centerX, centerY, 1 / 1.15);
+  };
+
+  // Auto-fit / Center Graph in viewport
+  const fitToScreen = React.useCallback((customNodes?: GraphNode[]) => {
+    const nodesToUse = customNodes || nodes;
+    if (!nodesToUse || nodesToUse.length === 0 || !svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const width = rect.width || svgRef.current.clientWidth || 800;
+    const height = rect.height || svgRef.current.clientHeight || 600;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    nodesToUse.forEach((node) => {
+      if (node.x !== undefined && node.y !== undefined) {
+        const nMinX = node.x - 75;
+        const nMaxX = node.x + 75;
+        const nMinY = node.y - 25;
+        const nMaxY = node.y + 25;
+
+        if (nMinX < minX) minX = nMinX;
+        if (nMaxX > maxX) maxX = nMaxX;
+        if (nMinY < minY) minY = nMinY;
+        if (nMaxY > maxY) maxY = nMaxY;
+      }
+    });
+
+    if (minX === Infinity || minY === Infinity) return;
+
+    const graphWidth = maxX - minX;
+    const graphHeight = maxY - minY;
+
+    const padding = 60;
+    const scaleX = (width - padding * 2) / graphWidth;
+    const scaleY = (height - padding * 2) / graphHeight;
+    let newScale = Math.min(scaleX, scaleY);
+
+    newScale = Math.max(0.15, Math.min(newScale, 1.2));
+
+    const centerX = minX + graphWidth / 2;
+    const centerY = minY + graphHeight / 2;
+
+    const newOffsetX = width / 2 - centerX * newScale;
+    const newOffsetY = height / 2 - centerY * newScale;
+
+    setScale(newScale);
+    setOffset({ x: newOffsetX, y: newOffsetY });
+  }, [nodes]);
+
+  // Run fitToScreen when nodes are loaded/updated
+  React.useEffect(() => {
+    if (nodes.length > 0) {
+      const timer = setTimeout(() => {
+        fitToScreen(nodes);
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes, fitToScreen]);
 
   // Simulation Logic
   const runSimulation = () => {
@@ -334,8 +431,38 @@ export default function DigitalTwin() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3.5 pt-0">
               <p className="text-xs text-muted-foreground">
-                Simulate manufacturing orders in-memory to test BoM feasibility and calculate potential revenue at risk without altering the database.
+                Simulate manufacturing orders in-memory to test BoM feasibility and calculate potential blocked revenue without altering the database.
               </p>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold">Select Finished Good</label>
+                <div className="max-h-32 overflow-y-auto border border-border rounded-md p-1 bg-muted/30 flex flex-col gap-1 select-none">
+                  {finishedGoods.length === 0 ? (
+                    <div className="text-[11px] text-muted-foreground p-2 text-center">No finished goods loaded</div>
+                  ) : (
+                    finishedGoods.map((fg) => {
+                      const isSelected = simSku.toLowerCase() === fg.details?.sku?.toLowerCase();
+                      return (
+                        <button
+                          key={fg.id}
+                          type="button"
+                          onClick={() => setSimSku(fg.details?.sku || "")}
+                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "hover:bg-muted text-foreground"
+                          }`}
+                        >
+                          <span className="truncate mr-2 font-medium">{fg.label}</span>
+                          <span className={`text-[10px] font-mono shrink-0 ${isSelected ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
+                            {fg.details?.sku}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold">Finished Good SKU</label>
                 <Input
@@ -384,9 +511,9 @@ export default function DigitalTwin() {
                 </span>
               </div>
               <div className="flex justify-between border-b border-border pb-1.5">
-                <span className="text-muted-foreground">Revenue at Risk:</span>
+                <span className="text-muted-foreground">Blocked Revenue:</span>
                 <span className={`font-bold ${summary?.total_revenue_at_risk && summary.total_revenue_at_risk > 0 ? "text-destructive" : "text-emerald-600"}`}>
-                  ${summary?.total_revenue_at_risk?.toLocaleString() ?? "0"}
+                  ₹{summary?.total_revenue_at_risk?.toLocaleString() ?? "0"}
                 </span>
               </div>
               <div className="flex justify-between border-b border-border pb-1.5">
@@ -402,73 +529,49 @@ export default function DigitalTwin() {
             </CardContent>
           </Card>
 
-          {/* Simulation Results Drawer */}
-          {simResults && (
-            <Card className="border-primary/50 bg-primary/[0.02]">
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-primary">
-                  Simulation Report
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2 pt-0 text-xs">
-                <div>
-                  <strong>Feasibility:</strong>{" "}
-                  {simResults.feasible ? (
-                    <span className="text-emerald-600 font-bold">FEASIBLE (Adequate Stock)</span>
-                  ) : (
-                    <span className="text-destructive font-bold">INFEASIBLE (Shortage)</span>
-                  )}
-                </div>
-                {simResults.shortages.length > 0 && (
-                  <div className="mt-1">
-                    <strong className="text-muted-foreground block mb-1">Stock Deficits:</strong>
-                    <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto border border-border rounded p-1.5 bg-card">
-                      {simResults.shortages.map((sh, idx) => (
-                        <div key={idx} className="border-b border-muted pb-1 last:border-0 last:pb-0">
-                          <span className="font-semibold text-foreground">{sh.name}</span> ({sh.rmSku})
-                          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-                            <span>Required: {sh.needed}</span>
-                            <span>Free Stock: {sh.available}</span>
-                            <span className="text-destructive font-bold">Short: {sh.missing}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+
         </div>
 
         {/* SVG Canvas Map */}
-        <div className="lg:col-span-3 bg-muted/20 relative flex-1 flex flex-col overflow-hidden">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 text-sm font-semibold">
-              Loading Twin Graph...
+        <div className="lg:col-span-3 bg-card relative flex-1 flex flex-col overflow-hidden">
+
+          {/* Graph Viewport Container */}
+          <div className="flex-1 relative bg-muted/20 w-full overflow-hidden">
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 text-sm font-semibold">
+                Loading Twin Graph...
+              </div>
+            )}
+
+            <div className="absolute top-3 left-3 bg-card border border-border px-2.5 py-1 rounded shadow-sm text-[10px] text-muted-foreground z-10 flex gap-4 select-none pointer-events-none">
+              <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-emerald-500" /> Healthy</div>
+              <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-yellow-500" /> Warning</div>
+              <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-red-500" /> Critical Shortage</div>
+              <div className="text-slate-500">Drag to Pan • Scroll to Zoom</div>
             </div>
-          )}
 
-          <div className="absolute top-3 left-3 bg-card border border-border px-2.5 py-1 rounded shadow-sm text-[10px] text-muted-foreground z-10 flex gap-4 select-none pointer-events-none">
-            <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-emerald-500" /> Healthy</div>
-            <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-yellow-500" /> Warning</div>
-            <div><span className="inline-block w-2 h-2 rounded-full mr-1 bg-red-500" /> Critical Shortage</div>
-            <div className="text-slate-500">Drag to Pan • Scroll to Zoom</div>
-          </div>
-
-          <svg
-            ref={svgRef}
-            className="w-full h-full cursor-grab active:cursor-grabbing outline-none"
+            <svg
+              ref={svgRef}
+              className="w-full h-full cursor-grab active:cursor-grabbing outline-none"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
           >
-            {/* Draw a grid background */}
-            <rect width="100%" height="100%" fill="none" className="svg-bg" />
+            {/* Draw a dynamic grid background that moves and scales with the graph */}
+            <rect width="100%" height="100%" fill="url(#grid)" className="svg-bg" />
 
             <defs>
+              <pattern
+                id="grid"
+                width="30"
+                height="30"
+                patternUnits="userSpaceOnUse"
+                patternTransform={`translate(${offset.x}, ${offset.y}) scale(${scale})`}
+              >
+                <circle cx="1.5" cy="1.5" r="1.2" fill="#94a3b8" opacity="0.22" />
+              </pattern>
               <marker
                 id="arrow"
                 viewBox="0 0 10 10"
@@ -544,6 +647,7 @@ export default function DigitalTwin() {
                     className="cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (hasDragged.current) return;
                       setSelectedNode(node);
                     }}
                   >
@@ -606,6 +710,152 @@ export default function DigitalTwin() {
             </g>
           </svg>
 
+          {/* Zoom & Navigation Controls */}
+          <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm border border-border shadow-lg rounded-lg p-1 flex items-center gap-1 z-10">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-muted"
+              onClick={handleZoomIn}
+              title="Zoom In"
+            >
+              <Plus className="h-4 w-4 text-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-muted"
+              onClick={handleZoomOut}
+              title="Zoom Out"
+            >
+              <Minus className="h-4 w-4 text-foreground" />
+            </Button>
+            <div className="w-[1px] h-5 bg-border mx-0.5" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs font-semibold gap-1 hover:bg-muted text-foreground"
+              onClick={() => fitToScreen()}
+              title="Fit View"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+              Fit View
+            </Button>
+          </div>
+
+        </div> {/* End of Graph Viewport Container */}
+
+        {/* Simulation Results Report Section */}
+        {simResults && (
+          <div className="border-t border-border bg-card p-6 flex flex-col gap-5 shadow-sm z-10 transition-all duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <div className="flex items-center gap-3">
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Simulation Report</h3>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  simResults.feasible
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "bg-destructive/10 text-destructive"
+                }`}>
+                  {simResults.feasible ? "✓ FEASIBLE (Adequate Stock)" : "⚠ INFEASIBLE (Shortages Detected)"}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setSimResults(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Grid Content with 40% / 30% / 30% columns */}
+            <div className="grid grid-cols-10 gap-8 divide-x divide-border">
+              {/* Column 1: Simulation Overview (40% width -> col-span-4) */}
+              <div className="col-span-4 pr-8 flex flex-col justify-between min-h-[150px] text-xs">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Simulation Overview</h4>
+                  <div className="text-base font-bold text-foreground">
+                    Produce {simQty} units of SKU {simSku}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-auto">
+                  <div>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Blocked Revenue</span>
+                    <span className={`text-xl font-black ${simResults.revenueAtRisk > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                      ₹{simResults.revenueAtRisk.toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Shortages Count</span>
+                    <span className={`text-xl font-black ${simResults.shortages.length > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                      {simResults.shortages.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Column 2: Material Impact (30% width -> col-span-3) */}
+              <div className="col-span-3 pl-8 pr-8 flex flex-col min-h-[150px] text-xs">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Material Impact</h4>
+                <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 max-h-[110px]">
+                  {simResults.shortages.length === 0 ? (
+                    <div className="text-emerald-600 font-semibold flex items-center gap-1.5 py-4 text-xs">
+                      All materials have 100% available stock.
+                    </div>
+                  ) : (
+                    simResults.shortages.map((sh, idx) => {
+                      const pct = sh.needed > 0 ? Math.min(100, Math.round((sh.available / sh.needed) * 100)) : 100;
+                      return (
+                        <div key={idx} className="flex flex-col gap-1.5 text-xs">
+                          <div className="flex justify-between font-semibold">
+                            <span className="truncate mr-2 text-foreground/90">{sh.name}</span>
+                            <span className="text-destructive font-bold shrink-0">-{sh.missing}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Free Stock: {sh.available}</span>
+                            <span>Required: {sh.needed}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden border border-border/40">
+                            <div
+                              className="bg-destructive h-full transition-all duration-300"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Column 3: Recommended Actions (30% width -> col-span-3) */}
+              <div className="col-span-3 pl-8 flex flex-col min-h-[150px] text-xs">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Recommended Actions</h4>
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 max-h-[110px]">
+                  {simResults.feasible ? (
+                    <div className="text-emerald-800 dark:text-emerald-300 leading-relaxed text-xs">
+                      No immediate action required. Warehouse has sufficient stock to fulfill this simulation quantity. Proceed to create the Manufacturing Order.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {simResults.shortages.map((sh, idx) => (
+                        <div key={idx} className="border-l-2 border-destructive pl-2.5 py-0.5 text-xs">
+                          <span className="font-semibold text-foreground block">Procurement recommendation:</span>
+                          <span className="text-muted-foreground">
+                            Create PO for <span className="font-semibold text-foreground">{sh.missing} units</span> of {sh.name} ({sh.rmSku}).
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
           {/* Floating Detail Drawer (Right Sidebar Card) */}
           {selectedNode && (
             <Card className="absolute top-4 right-4 w-80 bg-background border border-border shadow-xl z-20">
@@ -665,13 +915,13 @@ export default function DigitalTwin() {
                     {selectedNode.type === "product_fg" && (
                       <div className="grid grid-cols-3 gap-1 py-1 border-b border-muted">
                         <span className="text-muted-foreground font-medium col-span-1">Price:</span>
-                        <span className="col-span-2 text-right font-semibold text-emerald-600">${selectedNode.details?.sales_price}</span>
+                        <span className="col-span-2 text-right font-semibold text-emerald-600">₹{selectedNode.details?.sales_price}</span>
                       </div>
                     )}
                     {selectedNode.type === "product_rm" && (
                       <div className="grid grid-cols-3 gap-1 py-1 border-b border-muted">
                         <span className="text-muted-foreground font-medium col-span-1">Cost:</span>
-                        <span className="col-span-2 text-right font-semibold">${selectedNode.details?.cost_price}</span>
+                        <span className="col-span-2 text-right font-semibold">₹{selectedNode.details?.cost_price}</span>
                       </div>
                     )}
                     {selectedNode.details?.simulated_required !== undefined && (
@@ -701,12 +951,12 @@ export default function DigitalTwin() {
                     </div>
                     <div className="grid grid-cols-3 gap-1 py-1 border-b border-muted">
                       <span className="text-muted-foreground font-medium col-span-1">Total Amount:</span>
-                      <span className="col-span-2 text-right font-semibold">${selectedNode.details?.total_amount?.toLocaleString()}</span>
+                      <span className="col-span-2 text-right font-semibold">₹{selectedNode.details?.total_amount?.toLocaleString()}</span>
                     </div>
                     {selectedNode.details?.revenue_at_risk > 0 && (
                       <div className="grid grid-cols-3 gap-1 py-1 border-b border-muted bg-destructive/5 p-1 rounded">
-                        <span className="text-destructive font-semibold col-span-1">Risk Amount:</span>
-                        <span className="col-span-2 text-right font-bold text-destructive">${selectedNode.details?.revenue_at_risk?.toLocaleString()}</span>
+                        <span className="text-destructive font-semibold col-span-1">Blocked Revenue:</span>
+                        <span className="col-span-2 text-right font-bold text-destructive">₹{selectedNode.details?.revenue_at_risk?.toLocaleString()}</span>
                       </div>
                     )}
                   </>
@@ -724,7 +974,7 @@ export default function DigitalTwin() {
                     </div>
                     <div className="grid grid-cols-3 gap-1 py-1 border-b border-muted">
                       <span className="text-muted-foreground font-medium col-span-1">Total Amount:</span>
-                      <span className="col-span-2 text-right font-semibold">${selectedNode.details?.total_amount?.toLocaleString()}</span>
+                      <span className="col-span-2 text-right font-semibold">₹{selectedNode.details?.total_amount?.toLocaleString()}</span>
                     </div>
                   </>
                 )}
