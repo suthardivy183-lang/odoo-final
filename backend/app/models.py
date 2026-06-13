@@ -42,6 +42,14 @@ class Product(Base):
     active_bom = relationship("BoM", foreign_keys=[bom_id])
 
     @property
+    def stock(self) -> float:
+        return self.on_hand_qty
+
+    @stock.setter
+    def stock(self, value: float):
+        self.on_hand_qty = value
+
+    @property
     def free_to_use_qty(self) -> float:
         return self.on_hand_qty - self.reserved_qty
 
@@ -65,6 +73,7 @@ class SalesOrderLine(Base):
     quantity = Column(Float, nullable=False)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
+    delivered_qty = Column(Float, default=0.0, nullable=False)
 
     sales_order = relationship("SalesOrder", back_populates="lines")
     product = relationship("Product")

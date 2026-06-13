@@ -64,9 +64,14 @@ class SalesOrderLineBase(BaseModel):
     product_id: int
     quantity: float
     unit_price: float
+    delivered_qty: float = 0.0
 
 class SalesOrderLineCreate(SalesOrderLineBase):
     pass
+
+class SalesOrderLineUpdate(BaseModel):
+    id: int
+    delivered_qty: float
 
 class SalesOrderLineResponse(SalesOrderLineBase):
     id: int
@@ -86,6 +91,7 @@ class SalesOrderCreate(SalesOrderBase):
 class SalesOrderUpdate(BaseModel):
     customer_name: Optional[str] = None
     status: Optional[str] = None
+    lines: Optional[List[SalesOrderLineUpdate]] = None
 
 class SalesOrderResponse(SalesOrderBase):
     id: int
