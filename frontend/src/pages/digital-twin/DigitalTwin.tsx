@@ -5,7 +5,11 @@ import { PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Play, RefreshCw, X, AlertCircle, Info, HelpCircle, Plus, Minus, Maximize2 } from "lucide-react";
+import { Play, RefreshCw, X, AlertCircle, Info, HelpCircle, Plus, Minus, Maximize2, Network, FlaskConical } from "lucide-react";
+import { cn } from "@/lib/utils";
+import BusinessSimulationCenter from "@/pages/simulation/BusinessSimulationCenter";
+import { useBoms, useManufacturingOrders, usePurchaseOrders, useSalesOrders } from "@/hooks/useOrders";
+import { useProducts } from "@/hooks/useProducts";
 
 interface GraphNode {
   id: string;
@@ -35,7 +39,62 @@ interface GraphData {
   };
 }
 
+const getNumericProductId = (nodeId: string | number | null | undefined): number | null => {
+  if (!nodeId) return null;
+  if (typeof nodeId === "number") return nodeId;
+  const strId = String(nodeId);
+  if (strId.startsWith("product:")) {
+    return parseInt(strId.split(":")[1], 10);
+  }
+  return parseInt(strId, 10) || null;
+};
+
+function incomingPurchaseQuantity(productId: number, purchaseOrders?: any[]) {
+  return (
+    purchaseOrders
+      ?.filter((po) => ["Confirmed", "Partially Received"].includes(po.status))
+      .flatMap((po) => po.lines)
+      .filter((line) => line.product_id === productId)
+      .reduce((sum, line) => sum + Math.max(0, line.quantity - line.received_qty), 0) ?? 0
+  );
+}
+
+function getScenarioQuantity(
+  type: string,
+  baseQuantity: number,
+  percentage: number,
+  productId: number,
+  salesOrders?: any[]
+) {
+  if (type !== "demand-increase") return baseQuantity;
+  const currentDemand =
+    salesOrders?.reduce((sum, order) => {
+      return sum + order.lines.reduce(
+        (lineSum: number, line: any) => lineSum + (line.product_id === productId ? line.quantity : 0),
+        0
+      );
+    }, 0) ?? baseQuantity;
+  return Math.max(1, Math.round(currentDemand * (percentage / 100)));
+}
+
 export default function DigitalTwin() {
+  const [activeTab, setActiveTab] = React.useState<"map" | "simulation">("map");
+
+  // Fetch active collections for shared simulation calculations
+  const { data: products } = useProducts();
+  const { data: boms } = useBoms();
+  const { data: purchaseOrders } = usePurchaseOrders();
+  const { data: manufacturingOrders } = useManufacturingOrders();
+  const { data: salesOrders } = useSalesOrders();
+
+  // Committed simulation states (used to drive the simulation results calculation on both tabs)
+  const [committedScenarioType, setCommittedScenarioType] = React.useState<string>("sales-order");
+  const [committedProductId, setCommittedProductId] = React.useState<number | null>(null);
+  const [committedQuantityInput, setCommittedQuantityInput] = React.useState<number>(5000);
+  const [committedPercentageInput, setCommittedPercentageInput] = React.useState<number>(30);
+  const [committedFailedSupplier, setCommittedFailedSupplier] = React.useState<string>("");
+  const [lastRunAt, setLastRunAt] = React.useState<Date | null>(null);
+
   // 1. Fetch initial graph data
   const { data: rawData, isLoading, refetch } = useQuery<GraphData>({
     queryKey: ["digital-twin-graph"],
@@ -65,15 +124,50 @@ export default function DigitalTwin() {
   const hasDragged = React.useRef<boolean>(false);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
 
-  // Simulation Center state
+  // Simulation Center state (Visual Graph Sidebar inputs and results)
   const [simSku, setSimSku] = React.useState<string>("");
-  const [simQty, setSimQty] = React.useState<number>(1);
+  const [simQty, setSimQty] = React.useState<number>(5000);
   const [isSimulating, setIsSimulating] = React.useState<boolean>(false);
   const [simResults, setSimResults] = React.useState<{
     feasible: boolean;
     revenueAtRisk: number;
     shortages: { rmSku: string; name: string; needed: number; available: number; missing: number }[];
   } | null>(null);
+
+  // Set default product selection once finished goods are loaded
+  React.useEffect(() => {
+    if (!committedProductId && finishedGoods[0]) {
+      const numericId = getNumericProductId(finishedGoods[0].id);
+      if (numericId) {
+        setCommittedProductId(numericId);
+      }
+    }
+  }, [finishedGoods, committedProductId]);
+
+  // Synchronize local graph sidebar inputs when committed values change (e.g. simulation run on Scenario Center tab)
+  React.useEffect(() => {
+    if (!rawData || !committedProductId) return;
+    const targetProduct = rawData.nodes.find(
+      (n) => n.type === "product" && getNumericProductId(n.id) === committedProductId
+    );
+    if (targetProduct && targetProduct.details?.sku !== simSku) {
+      setSimSku(targetProduct.details?.sku || "");
+    }
+  }, [committedProductId, rawData]);
+
+  React.useEffect(() => {
+    if (committedQuantityInput !== undefined) {
+      setSimQty(committedQuantityInput);
+    }
+  }, [committedQuantityInput]);
+
+  const committedSku = React.useMemo(() => {
+    if (!rawData || !committedProductId) return "";
+    const node = rawData.nodes.find(
+      (n) => n.type === "product" && getNumericProductId(n.id) === committedProductId
+    );
+    return node?.details?.sku || "";
+  }, [rawData, committedProductId]);
 
   // Process raw data into layered columns
   React.useEffect(() => {
@@ -281,20 +375,20 @@ export default function DigitalTwin() {
 
   // Simulation Logic
   const runSimulation = () => {
-    if (!rawData) return;
-    if (!simSku.trim()) return;
+    if (!rawData || !committedProductId) return;
 
-    const targetFG = rawData.nodes.find(
+    // Find the target FG node in the visual graph
+    const targetFGNode = rawData.nodes.find(
       (n) =>
         n.type === "product" &&
         n.details.category === "Finished Good" &&
-        n.details.sku.toLowerCase() === simSku.trim().toLowerCase()
+        getNumericProductId(n.id) === committedProductId
     );
+    if (!targetFGNode) return;
 
-    if (!targetFG) {
-      alert(`SKU '${simSku}' not found or is not a Finished Good.`);
-      return;
-    }
+    // Retrieve full model objects from cached React Query collections
+    const selectedProduct = products?.find((p) => p.id === committedProductId);
+    const selectedBom = boms?.find((b) => b.product_id === committedProductId || b.id === selectedProduct?.bom_id);
 
     setIsSimulating(true);
 
@@ -302,7 +396,7 @@ export default function DigitalTwin() {
     const simNodes = JSON.parse(JSON.stringify(rawData.nodes)) as GraphNode[];
     const simEdges = JSON.parse(JSON.stringify(rawData.edges)) as GraphEdge[];
 
-    // Rename node types for classification
+    // Rename node types for classification mapping
     simNodes.forEach((node) => {
       if (node.type === "product") {
         if (node.details.category === "Finished Good") {
@@ -313,58 +407,123 @@ export default function DigitalTwin() {
       }
     });
 
-    const fgNodeId = targetFG.id;
-    const virtualRequirements: Record<string, number> = {};
+    // Compute simulation quantity using active scenario adjustments
+    const scenarioQuantity = getScenarioQuantity(
+      committedScenarioType,
+      committedQuantityInput,
+      committedPercentageInput,
+      committedProductId,
+      salesOrders
+    );
 
-    // Recursive BOM explosion in frontend
-    const explode = (nodeId: string, qty: number) => {
-      const bomEdge = simEdges.find((e) => e.source === nodeId && e.type === "manufactured_via");
-      if (!bomEdge) {
-        // Raw material/leaf
-        virtualRequirements[nodeId] = (virtualRequirements[nodeId] || 0) + qty;
-        return;
-      }
-      const bomId = bomEdge.target;
-      const requiresEdges = simEdges.filter((e) => e.source === bomId && e.type === "requires");
-      requiresEdges.forEach((reqEdge) => {
-        const componentId = reqEdge.target;
-        const compQty = (reqEdge.quantity || 0) * qty;
-        explode(componentId, compQty);
+    const inventoryAdjustment = committedScenarioType === "inventory-reduction" ? Math.max(0, 1 - committedPercentageInput / 100) : 1;
+
+    let materialLines: {
+      id: number;
+      name: string;
+      sku: string;
+      required: number;
+      available: number;
+      shortage: number;
+    }[] = [];
+
+    if (selectedBom) {
+      materialLines = selectedBom.components.map((component) => {
+        const material = component.component_product || products?.find((p) => p.id === component.component_product_id);
+        const supplier = material?.vendor_id || "Unassigned supplier";
+        const supplierAvailable = !(committedScenarioType === "supplier-failure" && committedFailedSupplier && supplier === committedFailedSupplier);
+        
+        const required = component.quantity * scenarioQuantity;
+        const stockAvailable = (material?.free_to_use_qty ?? material?.on_hand_qty ?? 0) * inventoryAdjustment;
+        const incoming = supplierAvailable ? incomingPurchaseQuantity(component.component_product_id, purchaseOrders) : 0;
+        
+        const available = supplierAvailable ? stockAvailable + incoming : 0;
+        const shortage = Math.max(0, required - available);
+
+        return {
+          id: component.component_product_id,
+          name: material?.name || `Material #${component.component_product_id}`,
+          sku: material?.sku || `#${component.component_product_id}`,
+          required,
+          available,
+          shortage,
+        };
       });
-    };
+    } else {
+      // Fallback to traversing graph edges
+      const fgNodeId = targetFGNode.id;
+      const virtualRequirements: Record<string, number> = {};
 
-    explode(fgNodeId, simQty);
+      const explode = (nodeId: string, qty: number) => {
+        const bomEdge = simEdges.find((e) => e.source === nodeId && e.type === "manufactured_via");
+        if (!bomEdge) {
+          virtualRequirements[nodeId] = (virtualRequirements[nodeId] || 0) + qty;
+          return;
+        }
+        const bomId = bomEdge.target;
+        const requiresEdges = simEdges.filter((e) => e.source === bomId && e.type === "requires");
+        requiresEdges.forEach((reqEdge) => {
+          const componentId = reqEdge.target;
+          const compQty = (reqEdge.quantity || 0) * qty;
+          explode(componentId, compQty);
+        });
+      };
 
-    // Evaluate shortages
+      explode(fgNodeId, scenarioQuantity);
+
+      materialLines = Object.entries(virtualRequirements).map(([nodeId, reqQty]) => {
+        const numericId = getNumericProductId(nodeId) || 0;
+        const materialNode = simNodes.find((n) => n.id === nodeId);
+        const material = products?.find((p) => p.id === numericId);
+        const supplier = material?.vendor_id || "Unassigned supplier";
+        const supplierAvailable = !(committedScenarioType === "supplier-failure" && committedFailedSupplier && supplier === committedFailedSupplier);
+
+        const required = reqQty;
+        const stockAvailable = (material?.free_to_use_qty ?? materialNode?.details?.free_to_use ?? 0) * inventoryAdjustment;
+        const incoming = supplierAvailable ? incomingPurchaseQuantity(numericId, purchaseOrders) : 0;
+
+        const available = supplierAvailable ? stockAvailable + incoming : 0;
+        const shortage = Math.max(0, required - available);
+
+        return {
+          id: numericId,
+          name: materialNode?.label || material?.name || `Material #${numericId}`,
+          sku: materialNode?.details?.sku || material?.sku || `#${numericId}`,
+          required,
+          available,
+          shortage,
+        };
+      });
+    }
+
     const shortagesList: { rmSku: string; name: string; needed: number; available: number; missing: number }[] = [];
     let isFeasible = true;
 
+    // Apply simulation highlights to component nodes
     simNodes.forEach((node) => {
       if (node.type === "product_rm") {
-        const required = virtualRequirements[node.id] || 0;
-        if (required > 0) {
-          const available = node.details.free_to_use;
-          if (required > available) {
+        const matLine = materialLines.find((line) => line.id === getNumericProductId(node.id));
+        if (matLine && matLine.required > 0) {
+          if (matLine.shortage > 0) {
             isFeasible = false;
-            const missing = required - available;
             node.status = "red";
             node.details = {
               ...node.details,
-              simulated_required: required,
-              simulated_shortage: missing,
+              simulated_required: matLine.required,
+              simulated_shortage: matLine.shortage,
             };
             shortagesList.push({
-              rmSku: node.details.sku,
-              name: node.label,
-              needed: required,
-              available: available,
-              missing: missing,
+              rmSku: matLine.sku,
+              name: matLine.name,
+              needed: matLine.required,
+              available: matLine.available,
+              missing: matLine.shortage,
             });
           } else {
             node.status = "yellow";
             node.details = {
               ...node.details,
-              simulated_required: required,
+              simulated_required: matLine.required,
               simulated_shortage: 0,
             };
           }
@@ -372,19 +531,19 @@ export default function DigitalTwin() {
       }
     });
 
-    // Compute virtual revenue at risk
-    const fgNode = simNodes.find((n) => n.id === fgNodeId);
+    // Update status of the finished good node
+    const fgNode = simNodes.find((n) => getNumericProductId(n.id) === committedProductId);
     let simulatedRevAtRisk = 0;
     if (fgNode) {
       if (!isFeasible) {
         fgNode.status = "red";
-        simulatedRevAtRisk = simQty * (fgNode.details.sales_price || 0);
+        simulatedRevAtRisk = scenarioQuantity * (fgNode.details.sales_price || 0);
       } else {
         fgNode.status = "green";
       }
     }
 
-    // Refresh layout coordinates
+    // Refresh layout coordinates with virtual summary details
     layoutGraph(simNodes, simEdges, {
       total_revenue_at_risk: simulatedRevAtRisk,
       critical_shortages_count: shortagesList.length,
@@ -401,10 +560,49 @@ export default function DigitalTwin() {
   const resetSimulation = () => {
     setIsSimulating(false);
     setSimResults(null);
+    setLastRunAt(null);
+    setCommittedScenarioType("sales-order");
+    setCommittedProductId(null);
+    setCommittedQuantityInput(5000);
+    setCommittedPercentageInput(30);
+    setCommittedFailedSupplier("");
     if (rawData) {
       layoutGraph(rawData.nodes, rawData.edges, rawData.summary);
     }
   };
+
+  // Handle clicking the Visual Graph Run button: commit local states to trigger simulation
+  const handleRunVisualSimulation = () => {
+    if (!rawData) return;
+    if (!simSku.trim()) return;
+
+    const targetFG = rawData.nodes.find(
+      (n) =>
+        n.type === "product" &&
+        n.details.category === "Finished Good" &&
+        n.details.sku.toLowerCase() === simSku.trim().toLowerCase()
+    );
+
+    if (!targetFG) {
+      alert(`SKU '${simSku}' not found or is not a Finished Good.`);
+      return;
+    }
+
+    const numericId = getNumericProductId(targetFG.id);
+    setCommittedProductId(numericId);
+    setCommittedQuantityInput(simQty);
+    setCommittedScenarioType("sales-order"); // Visual Map only does sales-order simulation
+    setCommittedPercentageInput(30);
+    setCommittedFailedSupplier("");
+    setLastRunAt(new Date());
+  };
+
+  // Automatically execute the visual graph simulation whenever lastRunAt updates
+  React.useEffect(() => {
+    if (lastRunAt && rawData && committedProductId) {
+      runSimulation();
+    }
+  }, [lastRunAt, rawData, committedProductId]);
 
   const getStatusColor = (status: string, opacity: string = "1") => {
     if (status === "red") return `rgba(239, 68, 68, ${opacity})`;   // Red-500
@@ -413,83 +611,116 @@ export default function DigitalTwin() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
       <PageHeader
-        title="Company Digital Twin Map"
-        description="Interactive supply chain visualization mapping dependencies and real-time risks."
+        title="Digital Twin Workspace"
+        description={
+          activeTab === "map"
+            ? "Interactive supply chain visualization mapping dependencies and real-time risks."
+            : "Run virtual versions of the company to stress-test capacity and predict impacts."
+        }
+        action={
+          <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-lg border border-slate-200">
+            <button
+              onClick={() => setActiveTab("map")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                activeTab === "map"
+                  ? "bg-white text-slate-950 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              )}
+            >
+              <Network className="h-3.5 w-3.5" />
+              Visual Graph Map
+            </button>
+            <button
+              onClick={() => setActiveTab("simulation")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                activeTab === "simulation"
+                  ? "bg-white text-slate-950 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              )}
+            >
+              <FlaskConical className="h-3.5 w-3.5" />
+              Scenario Analysis Center
+            </button>
+          </div>
+        }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 flex-1 overflow-hidden">
-        {/* Left Control Panel / Simulation Center */}
-        <div className="lg:col-span-1 border-r border-border bg-card p-4 flex flex-col gap-4 overflow-y-auto">
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                <Play className="h-4 w-4 text-primary" />
-                Simulation Center
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3.5 pt-0">
-              <p className="text-xs text-muted-foreground">
-                Simulate manufacturing orders in-memory to test BoM feasibility and calculate potential blocked revenue without altering the database.
-              </p>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Select Finished Good</label>
-                <div className="max-h-32 overflow-y-auto border border-border rounded-md p-1 bg-muted/30 flex flex-col gap-1 select-none">
-                  {finishedGoods.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground p-2 text-center">No finished goods loaded</div>
-                  ) : (
-                    finishedGoods.map((fg) => {
-                      const isSelected = simSku.toLowerCase() === fg.details?.sku?.toLowerCase();
-                      return (
-                        <button
-                          key={fg.id}
-                          type="button"
-                          onClick={() => setSimSku(fg.details?.sku || "")}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-semibold"
-                              : "hover:bg-muted text-foreground"
-                          }`}
-                        >
-                          <span className="truncate mr-2 font-medium">{fg.label}</span>
-                          <span className={`text-[10px] font-mono shrink-0 ${isSelected ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
-                            {fg.details?.sku}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
+      {activeTab === "map" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 flex-1 overflow-hidden">
+          {/* Left Control Panel / Simulation Center */}
+          <div className="lg:col-span-1 border-r border-border bg-card p-4 flex flex-col gap-4 overflow-y-auto">
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                  <Play className="h-4 w-4 text-primary" />
+                  Simulation Center
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3.5 pt-0">
+                <p className="text-xs text-muted-foreground">
+                  Simulate manufacturing orders in-memory to test BoM feasibility and calculate potential blocked revenue without altering the database.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold">Select Finished Good</label>
+                  <div className="max-h-32 overflow-y-auto border border-border rounded-md p-1 bg-muted/30 flex flex-col gap-1 select-none">
+                    {finishedGoods.length === 0 ? (
+                      <div className="text-[11px] text-muted-foreground p-2 text-center">No finished goods loaded</div>
+                    ) : (
+                      finishedGoods.map((fg) => {
+                        const isSelected = simSku.toLowerCase() === fg.details?.sku?.toLowerCase();
+                        return (
+                          <button
+                            key={fg.id}
+                            type="button"
+                            onClick={() => setSimSku(fg.details?.sku || "")}
+                            className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground font-semibold"
+                                : "hover:bg-muted text-foreground"
+                            }`}
+                          >
+                            <span className="truncate mr-2 font-medium">{fg.label}</span>
+                            <span className={`text-[10px] font-mono shrink-0 ${isSelected ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
+                              {fg.details?.sku}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Finished Good SKU</label>
-                <Input
-                  placeholder="e.g. FG001"
-                  value={simSku}
-                  onChange={(e) => setSimSku(e.target.value)}
-                  className="h-9"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Simulated Qty</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={simQty}
-                  onChange={(e) => setSimQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                  className="h-9"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={runSimulation} size="sm" className="flex-1 gap-1">
-                  <Play className="h-3 w-3" /> Run
-                </Button>
-                {isSimulating && (
-                  <Button onClick={resetSimulation} variant="outline" size="sm" className="gap-1">
-                    <RefreshCw className="h-3 w-3" /> Reset
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold">Finished Good SKU</label>
+                  <Input
+                    placeholder="e.g. FG001"
+                    value={simSku}
+                    onChange={(e) => setSimSku(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold">Simulated Qty</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={simQty}
+                    onChange={(e) => setSimQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleRunVisualSimulation} size="sm" className="flex-1 gap-1">
+                    <Play className="h-3 w-3" /> Run
                   </Button>
+                  {isSimulating && (
+                    <Button onClick={resetSimulation} variant="outline" size="sm" className="gap-1">
+                      <RefreshCw className="h-3 w-3" /> Reset
+                    </Button>
                 )}
               </div>
             </CardContent>
@@ -777,7 +1008,7 @@ export default function DigitalTwin() {
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Simulation Overview</h4>
                   <div className="text-base font-bold text-foreground">
-                    Produce {simQty} units of SKU {simSku}
+                    Produce {committedQuantityInput} units of SKU {committedSku}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-auto">
@@ -1026,6 +1257,27 @@ export default function DigitalTwin() {
           )}
         </div>
       </div>
+    ) : (
+      <div className="flex-1 overflow-y-auto">
+        <BusinessSimulationCenter
+          hideHeader={true}
+          committedScenarioType={committedScenarioType as any}
+          committedProductId={committedProductId}
+          committedQuantityInput={committedQuantityInput}
+          committedPercentageInput={committedPercentageInput}
+          committedFailedSupplier={committedFailedSupplier}
+          lastRunAt={lastRunAt}
+          onRun={(values) => {
+            setCommittedScenarioType(values.scenarioType);
+            setCommittedProductId(values.productId);
+            setCommittedQuantityInput(values.quantityInput);
+            setCommittedPercentageInput(values.percentageInput);
+            setCommittedFailedSupplier(values.failedSupplier);
+            setLastRunAt(new Date());
+          }}
+        />
+      </div>
+    )}
     </div>
   );
 }

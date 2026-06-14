@@ -8,7 +8,7 @@ import { useBoms, useManufacturingOrders, usePurchaseOrders, useSalesOrders } fr
 import { useProducts } from "@/hooks/useProducts";
 import { cn } from "@/lib/utils";
 import type { BillOfMaterials, Product, PurchaseOrder } from "@/lib/types";
-import { ArrowRight, CircleDollarSign, Clock3, CopyCheck, FlaskConical, GitCompareArrows, Landmark, PackageSearch, Play, Route, ShieldAlert, TriangleAlert, WandSparkles, Warehouse } from "lucide-react";
+import { CircleDollarSign, Clock3, CopyCheck, FlaskConical, Landmark, PackageSearch, Play, Route, ShieldAlert, TriangleAlert, WandSparkles, Warehouse } from "lucide-react";
 
 type ScenarioType =
   | "sales-order"
@@ -276,7 +276,33 @@ function OccupancyBar({ value, tone }: { value: number; tone: string }) {
   );
 }
 
-export default function BusinessSimulationCenter() {
+export interface BusinessSimulationCenterProps {
+  hideHeader?: boolean;
+  committedScenarioType?: ScenarioType;
+  committedProductId?: number | null;
+  committedQuantityInput?: number;
+  committedPercentageInput?: number;
+  committedFailedSupplier?: string;
+  lastRunAt?: Date | null;
+  onRun?: (values: {
+    scenarioType: ScenarioType;
+    productId: number | null;
+    quantityInput: number;
+    percentageInput: number;
+    failedSupplier: string;
+  }) => void;
+}
+
+export default function BusinessSimulationCenter({
+  hideHeader = false,
+  committedScenarioType: propCommittedScenarioType,
+  committedProductId: propCommittedProductId,
+  committedQuantityInput: propCommittedQuantityInput,
+  committedPercentageInput: propCommittedPercentageInput,
+  committedFailedSupplier: propCommittedFailedSupplier,
+  lastRunAt,
+  onRun,
+}: BusinessSimulationCenterProps) {
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: boms } = useBoms();
   const { data: purchaseOrders } = usePurchaseOrders();
@@ -290,12 +316,34 @@ export default function BusinessSimulationCenter() {
     () => Array.from(new Set((products ?? []).map((product) => product.vendor_id).filter((vendor): vendor is string => Boolean(vendor)))),
     [products]
   );
-  const [scenarioType, setScenarioType] = React.useState<ScenarioType>("sales-order");
-  const [productId, setProductId] = React.useState<number | null>(null);
-  const [quantityInput, setQuantityInput] = React.useState(5000);
-  const [percentageInput, setPercentageInput] = React.useState(30);
-  const [failedSupplier, setFailedSupplier] = React.useState("");
-  const [lastRunAt, setLastRunAt] = React.useState<Date | null>(null);
+
+  // Local uncommitted input states
+  const [scenarioType, setScenarioType] = React.useState<ScenarioType>(propCommittedScenarioType || "sales-order");
+  const [productId, setProductId] = React.useState<number | null>(propCommittedProductId ?? null);
+  const [quantityInput, setQuantityInput] = React.useState(propCommittedQuantityInput ?? 5000);
+  const [percentageInput, setPercentageInput] = React.useState(propCommittedPercentageInput ?? 30);
+  const [failedSupplier, setFailedSupplier] = React.useState(propCommittedFailedSupplier || "");
+
+  // Update local states when props change (sync from committed)
+  React.useEffect(() => {
+    if (propCommittedScenarioType) setScenarioType(propCommittedScenarioType);
+  }, [propCommittedScenarioType]);
+
+  React.useEffect(() => {
+    if (propCommittedProductId !== undefined) setProductId(propCommittedProductId);
+  }, [propCommittedProductId]);
+
+  React.useEffect(() => {
+    if (propCommittedQuantityInput !== undefined) setQuantityInput(propCommittedQuantityInput);
+  }, [propCommittedQuantityInput]);
+
+  React.useEffect(() => {
+    if (propCommittedPercentageInput !== undefined) setPercentageInput(propCommittedPercentageInput);
+  }, [propCommittedPercentageInput]);
+
+  React.useEffect(() => {
+    if (propCommittedFailedSupplier !== undefined) setFailedSupplier(propCommittedFailedSupplier);
+  }, [propCommittedFailedSupplier]);
 
   React.useEffect(() => {
     if (!productId && finishedProducts[0]) setProductId(finishedProducts[0].id);
@@ -305,9 +353,16 @@ export default function BusinessSimulationCenter() {
     if (!failedSupplier && suppliers[0]) setFailedSupplier(suppliers[0]);
   }, [failedSupplier, suppliers]);
 
-  const selectedProduct = products?.find((product) => product.id === productId);
+  // Compute simulation using COMMITTED values (or fall back to local values on initial load)
+  const activeScenarioType = propCommittedScenarioType || scenarioType;
+  const activeProductId = propCommittedProductId !== undefined && propCommittedProductId !== null ? propCommittedProductId : productId;
+  const activeQuantityInput = propCommittedQuantityInput !== undefined ? propCommittedQuantityInput : quantityInput;
+  const activePercentageInput = propCommittedPercentageInput !== undefined ? propCommittedPercentageInput : percentageInput;
+  const activeFailedSupplier = propCommittedFailedSupplier !== undefined ? propCommittedFailedSupplier : failedSupplier;
+
+  const selectedProduct = products?.find((product) => product.id === activeProductId);
   const selectedBom = findBom(selectedProduct, boms);
-  const scenarioQuantity = getScenarioQuantity(scenarioType, quantityInput, percentageInput, productId ?? 0, salesOrders);
+  const scenarioQuantity = getScenarioQuantity(activeScenarioType, activeQuantityInput, activePercentageInput, activeProductId ?? 0, salesOrders);
   const activeManufacturingQty =
     manufacturingOrders
       ?.filter((order) => ["Planned", "In Progress"].includes(order.status))
@@ -321,32 +376,19 @@ export default function BusinessSimulationCenter() {
     purchaseOrders,
     activeManufacturingQty,
     quantity: scenarioQuantity,
-    scenarioType,
-    percentage: percentageInput,
-    failedSupplier,
+    scenarioType: activeScenarioType,
+    percentage: activePercentageInput,
+    failedSupplier: activeFailedSupplier,
   });
 
-  const comparison = buildSimulation({
-    label: "Scenario B",
-    product: selectedProduct,
-    bom: selectedBom,
-    products,
-    purchaseOrders,
-    activeManufacturingQty,
-    quantity: Math.max(1, Math.round(scenarioQuantity * 1.4)),
-    scenarioType,
-    percentage: percentageInput,
-    failedSupplier,
-  });
-
-  const scenario = SCENARIOS.find((item) => item.value === scenarioType) ?? SCENARIOS[0];
+  const scenario = SCENARIOS.find((item) => item.value === activeScenarioType) ?? SCENARIOS[0];
   const topShortages = result.materialLines.filter((line) => line.shortage > 0);
   const sufficientMaterials = result.materialLines.filter((line) => line.shortage <= 0);
   const materialStatus = result.canFulfill ? "Can fulfill" : "Needs intervention";
 
   return (
     <div className="min-h-full bg-slate-50">
-      <PageHeader title="Business Simulation Center" description="Run a virtual version of the company before committing to a decision." />
+      {!hideHeader && <PageHeader title="Business Simulation Center" description="Run a virtual version of the company before committing to a decision." />}
 
       <div className="space-y-6 p-6 lg:p-8">
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -414,7 +456,20 @@ export default function BusinessSimulationCenter() {
               )}
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button className="h-10 bg-slate-950 px-5 text-white hover:bg-slate-800" onClick={() => setLastRunAt(new Date())}>
+                <Button
+                  className="h-10 bg-slate-950 px-5 text-white hover:bg-slate-800"
+                  onClick={() => {
+                    if (onRun) {
+                      onRun({
+                        scenarioType,
+                        productId,
+                        quantityInput,
+                        percentageInput,
+                        failedSupplier,
+                      });
+                    }
+                  }}
+                >
                   <Play className="h-4 w-4" />
                   Run Simulation
                 </Button>
@@ -577,66 +632,6 @@ export default function BusinessSimulationCenter() {
           </SectionCard>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-          <SectionCard title="Financial Impact" icon={CircleDollarSign}>
-            <div className="grid gap-4 sm:grid-cols-4">
-              {[
-                ["Estimated Revenue", currency.format(result.estimatedRevenue)],
-                ["Estimated Cost", currency.format(result.estimatedCost)],
-                ["Projected Profit", currency.format(result.projectedProfit)],
-                ["Profit Margin", `${percent.format(result.margin)}%`],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-                  <p className="mt-2 text-xl font-bold text-slate-950">{value}</p>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Scenario Comparison" icon={GitCompareArrows}>
-            <div className="grid gap-3">
-              {[result, comparison].map((item) => (
-                <div key={item.label} className="rounded-lg border border-slate-200 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-slate-950">{item.label}</p>
-                    <span className={cn("rounded-full px-2 py-1 text-xs font-bold", item.riskCount > 0 ? "bg-orange-50 text-orange-700" : "bg-emerald-50 text-emerald-700")}>
-                      {item.riskCount} risks
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-500">{number.format(item.quantity)} units</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-500">Profit</p>
-                      <p className="mt-1 font-bold text-slate-950">{currency.format(item.projectedProfit)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-500">Time</p>
-                      <p className="mt-1 font-bold text-slate-950">{item.completionDays} days</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-950">Convert simulation into real actions</h2>
-              <p className="mt-1 text-sm text-slate-500">Review and approve before anything writes to live ERP records.</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {["Generate Purchase Order", "Generate Manufacturing Order", "Reserve Inventory", "Approve Production Plan"].map((action) => (
-                <Button key={action} variant="outline" className="justify-between">
-                  {action}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              ))}
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );
